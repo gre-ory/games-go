@@ -1,0 +1,5 @@
+.loading::before{
+    content: "loading...";
+    color: #bbb;
+    font-weight: bold;
+}

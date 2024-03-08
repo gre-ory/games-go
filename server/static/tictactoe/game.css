@@ -1,0 +1,310 @@
+
+body {
+    font-family:monospace;
+    --color-red: #b71348;
+    --color-blue: #2688d1;
+    --color-green: #00ad94;
+    --color-yellow: #f2ae16;
+    --color-dark: #042b49;
+    --color-light-brown: #d5bdaf;
+    --color-light: #f0f2f4;
+}
+
+#main {
+    padding: 10px;
+}
+
+#header:before {
+    content: "Header";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#header {
+    margin: 0px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+    
+    display: inline-block;
+    width: 100%;
+}
+
+#content:before {
+    content: "Content";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#content {
+    margin: 0px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+    
+    display: inline-block;
+    width: 100%;
+    vertical-align: top;
+}
+
+#players:before {
+    content: "Players";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#players {
+    margin: 0px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: calc(25% - 8px);
+    vertical-align: top;
+}
+
+#players .player:before {
+    content: " [      ] ";
+    white-space:pre;
+    color: var(--color-dark);
+}
+
+#players .player.playing:before {
+    content: " [ PLAY ] ";
+    color: var(--color-red);
+}
+
+#players .player.win:before {
+    content: " [  WIN  ] ";
+    color: var(--color-green);
+}
+
+#players .player.loose:before {
+    content: " [ LOOSE ] ";
+    color: var(--color-red);
+}
+
+#players .player.tie:before {
+    content: " [  TIE  ] ";
+    color: var(--color-dark);
+}
+
+#players .player.symbol-1:after {
+    content: " ( X ) ";
+    color: var(--color-yellow);
+}
+
+#players .player.symbol-2:after {
+    content: " ( O ) ";
+    color: var(--color-blue);
+}
+
+#players .player {
+    color: var(--color-dark);
+    display: block;
+}
+
+#board {
+    margin: 0px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: calc(50% - 8px);
+    vertical-align: top;
+    text-align: center;
+}
+
+#board .player {
+    display: inline-block;
+    border: 3px solid white;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+#board .player.playing {
+    border-color: var(--color-red);
+}
+
+#messages:before {
+    content: "Messages";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#messages {
+    margin: 0px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: calc(25% - 8px);
+    vertical-align: top;
+}
+
+#notifications:before {
+    content: "Notifications";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#notifications {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: 100%;
+}
+
+#errors:before {
+    content: "Errors";
+    font-weight: bold;
+    color: var(--color-dark); 
+    display: inline;
+    margin-top: -20px;
+    background-color: white;
+    position: absolute;
+    padding: 0px 5px;
+    font-size: small;
+}
+
+#errors {
+    margin: 0px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: 100%;
+    color: darkred;
+}
+
+.websocket {
+    margin: 0px;
+    padding: 10px;
+    border: 1px solid var(--color-dark);
+    border-radius: 5px;
+
+    display: inline-block;
+    width: 100%;
+}
+
+.loading {
+    margin: auto;
+    color: var(--color-dark);
+}
+
+#board .cell-container {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+#board .cell {
+    font-family: monospace;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    border-radius: 5px;
+    box-shadow: gray 3px 3px 0px;
+    text-align: center;
+    margin: 5px;
+}
+
+#board .cell.empty {
+    background-color: var(--color-light-brown);
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+}
+
+#board .cell.symbol-1 {
+    background-color: var(--color-yellow);
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+}
+
+#board .cell.symbol-2 {
+    background-color: var(--color-blue);
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+}
+
+#board .player.playing.symbol-1 .cell.empty:hover {
+    background-color: var(--color-yellow);
+    cursor: pointer;
+}
+
+#board .player.playing.symbol-2 .cell.empty:hover {
+    background-color: var(--color-blue);
+    cursor: pointer;
+}
+
+#ws-status {
+	color: var(--color-dark);
+    float:right;
+}
+#ws-status::before {
+	content: "";
+	display: inline-block;
+	width: 25px;
+	height: 19px;
+	margin-right: 0.2em;
+	vertical-align: middle;
+	background-image: url(/static/share/ws-status.png);
+	background-repeat: no-repeat;
+	background-position: left center;
+	background-size: 100px 19px;
+}
+#ws-[data-status="connected"] { color: var(--color-green); }
+#ws-status[data-status="error"] { color: var(--red-color); }
+#ws-status[data-status="connecting"] { color: var(--color-blue); }
+#ws-status[data-status="disconnected"] { color: var(--color-yellow); }
+
+#ws-status[data-status="connected"]::before { background-position: left center; }
+#ws-status[data-status="error"]::before { background-position: -25px center; }
+#ws-status[data-status="connecting"]::before { background-position: -50px center; }
+#ws-status[data-status="disconnected"]::before { background-position: right center; }

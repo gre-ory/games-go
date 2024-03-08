@@ -11,5 +11,13 @@ var (
 )
 
 var (
-	tpl = template.Must(template.ParseFS(tplFS, "tpl/*.tpl"))
+	funcs = template.FuncMap{
+		"inc": func(i int) int {
+			return i + 1
+		},
+	}
+
+	tpl = template.Must(
+		template.ParseFS(tplFS, "tpl/*.tpl"),
+	)
 )
