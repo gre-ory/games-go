@@ -37,7 +37,7 @@ body {
     width: 100%;
 }
 
-#content:before {
+/* #content:before {
     content: "Content";
     font-weight: bold;
     color: var(--color-dark); 
@@ -47,14 +47,14 @@ body {
     position: absolute;
     padding: 0px 5px;
     font-size: small;
-}
+} */
 
 #content {
     margin: 0px;
     margin-top: 10px;
-    padding: 10px;
+    /* padding: 10px;
     border: 1px solid var(--color-dark);
-    border-radius: 5px;
+    border-radius: 5px; */
     
     display: inline-block;
     width: 100%;
@@ -80,43 +80,48 @@ body {
     border-radius: 5px;
 
     display: inline-block;
-    width: calc(25% - 8px);
+    width: calc(40% - 6px);
     vertical-align: top;
+    font-size: 12px;
 }
 
 #players .player:before {
-    content: " [      ] ";
+    content: "-";
     white-space:pre;
     color: var(--color-dark);
 }
 
 #players .player.playing:before {
-    content: " [ PLAY ] ";
+    content: "❱";
     color: var(--color-red);
+    font-weight: bold;
 }
 
 #players .player.win:before {
-    content: " [  WIN  ] ";
-    color: var(--color-green);
+    content: "➀";
+    color: var(--color-yellow);
+    font-weight: bold;
 }
 
 #players .player.loose:before {
-    content: " [ LOOSE ] ";
+    content: "➁";
     color: var(--color-red);
+    font-weight: bold;
 }
 
 #players .player.tie:before {
-    content: " [  TIE  ] ";
+    content: "➀";
     color: var(--color-dark);
+    font-weight: bold;
 }
 
 #players .player.symbol-1:after {
-    content: " ( X ) ";
+    content: " [X]";
     color: var(--color-yellow);
 }
 
 #players .player.symbol-2:after {
-    content: " ( O ) ";
+    content: " [O]";
     color: var(--color-blue);
 }
 
@@ -125,31 +130,8 @@ body {
     display: block;
 }
 
-#board {
-    margin: 0px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
-
-    display: inline-block;
-    width: calc(50% - 8px);
-    vertical-align: top;
-    text-align: center;
-}
-
-#board .player {
-    display: inline-block;
-    border: 3px solid white;
-    border-radius: 5px;
-    padding: 10px;
-}
-
-#board .player.playing {
-    border-color: var(--color-red);
-}
-
-#messages:before {
-    content: "Messages";
+#board:before {
+    content: "Board";
     font-weight: bold;
     color: var(--color-dark); 
     display: inline;
@@ -160,15 +142,24 @@ body {
     font-size: small;
 }
 
-#messages {
+#board {
     margin: 0px;
     padding: 10px;
     border: 1px solid var(--color-dark);
     border-radius: 5px;
 
     display: inline-block;
-    width: calc(25% - 8px);
+    width: calc(60% - 4px);
     vertical-align: top;
+    text-align: center;
+}
+
+#board.player.playing {
+    border: 3px solid var(--color-red);
+}
+
+#board .board {
+    display: inline-block;
 }
 
 #notifications:before {
@@ -234,43 +225,38 @@ body {
 
 #board .cell-container {
     display: inline-block;
-    width: 50px;
-    height: 50px;
-    margin-right: 10px;
+    width: 40px;
+    height: 40px;
+    margin-right: 5px;
     margin-bottom: 10px;
 }
 
 #board .cell {
     font-family: monospace;
     display: inline-block;
-    width: 50px;
-    height: 50px;
-    line-height: 50px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    font-size: 40px;
+    color: white;
+    font-weight: bold;
     border-radius: 5px;
     box-shadow: gray 3px 3px 0px;
     text-align: center;
-    margin: 5px;
+    margin: 0px;
+    white-space:pre;
 }
 
 #board .cell.empty {
     background-color: var(--color-light-brown);
-    color: white;
-    font-size: 40px;
-    font-weight: bold;
 }
 
 #board .cell.symbol-1 {
     background-color: var(--color-yellow);
-    color: white;
-    font-size: 40px;
-    font-weight: bold;
 }
 
 #board .cell.symbol-2 {
     background-color: var(--color-blue);
-    color: white;
-    font-size: 40px;
-    font-weight: bold;
 }
 
 #board .player.playing.symbol-1 .cell.empty:hover {

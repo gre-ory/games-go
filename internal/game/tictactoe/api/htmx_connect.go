@@ -47,18 +47,18 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		player.ConnectSocket(w, r)
 		player.Activate()
 
-		playerId = player.GetId()
+		playerId = player.Id()
 
 		if player.Name == "" {
 			s.broadcastSelectNameToPlayer(playerId)
 			return
 		}
 
-		if player.GetGameId() == "" {
+		if player.GameId() == "" {
 			s.broadcastJoinableGamesToPlayer(playerId)
 			return
 		}
-		gameId := player.GetGameId()
+		gameId := player.GameId()
 
 		game, err = s.service.GetGame(gameId)
 		if err != nil {

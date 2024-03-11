@@ -11,15 +11,22 @@ import (
 )
 
 type Player[IdT comparable, GameIdT comparable] interface {
-	GetId() IdT
-	GetGameId() GameIdT
+	HasId() bool
+	Id() IdT
+
+	HasGameId() bool
+	GameId() GameIdT
 	SetGameId(gameId GameIdT)
 	UnsetGameId()
+	CanJoin() bool
+
 	ConnectSocket(w http.ResponseWriter, r *http.Request) error
 	ReadSocket()
 	WriteSocket()
+
 	Activate()
 	Deactivate()
+
 	Send(bytes []byte)
 	Close()
 }
@@ -65,11 +72,21 @@ type player[IdT comparable, GameIdT comparable] struct {
 	onClose   func(id IdT)
 }
 
-func (p *player[IdT, GameIdT]) GetId() IdT {
+func (p *player[IdT, GameIdT]) HasId() bool {
+	var empty IdT
+	return p.id != empty
+}
+
+func (p *player[IdT, GameIdT]) Id() IdT {
 	return p.id
 }
 
-func (p *player[IdT, GameIdT]) GetGameId() GameIdT {
+func (p *player[IdT, GameIdT]) HasGameId() bool {
+	var empty GameIdT
+	return p.gameId != empty
+}
+
+func (p *player[IdT, GameIdT]) GameId() GameIdT {
 	return p.gameId
 }
 
@@ -80,6 +97,10 @@ func (p *player[IdT, GameIdT]) SetGameId(gameId GameIdT) {
 func (p *player[IdT, GameIdT]) UnsetGameId() {
 	var empty GameIdT
 	p.gameId = empty
+}
+
+func (p *player[IdT, GameIdT]) CanJoin() bool {
+	return p.active && p.HasId() && !p.HasGameId()
 }
 
 func (p *player[IdT, GameIdT]) ConnectSocket(w http.ResponseWriter, r *http.Request) error {

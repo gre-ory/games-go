@@ -60,7 +60,7 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 	if game.Stopped {
 		return nil, model.ErrGameStopped
 	}
-	if _, err := game.GetPlayer(player.GetId()); err == nil {
+	if _, err := game.GetPlayer(player.Id()); err == nil {
 		return game, nil
 	}
 	game = game.WithPlayer(player)
@@ -92,7 +92,7 @@ func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
 }
 
 func (s *gameService) PlayGame(player *model.Player, x, y int) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GetGameId())
+	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 	if err != nil {
 		return nil, err
 	}
-	if player.GetId() != currentPlayer.GetId() {
+	if player.Id() != currentPlayer.Id() {
 		return nil, model.ErrWrongPlayer
 	}
 
@@ -192,11 +192,10 @@ func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool,
 	if player == nil {
 		return true, data
 	}
-	gameId := player.GetGameId()
-	if gameId == "" {
+	if !player.HasGameId() {
 		return true, data
 	}
-	game, err := s.gameStore.Get(player.GetGameId())
+	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		return false, nil
 	}

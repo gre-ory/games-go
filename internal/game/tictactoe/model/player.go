@@ -17,14 +17,14 @@ func NewPlayer(player websocket.Player[PlayerId, GameId], name string) *Player {
 	return &Player{
 		Player: player,
 		Name:   name,
-		Status: WaitingToStart,
+		Status: WaitingToJoin,
 	}
 }
 
 type PlayerStatus int
 
 const (
-	WaitingToStart PlayerStatus = iota
+	WaitingToJoin PlayerStatus = iota
 	WaitingToPlay
 	Playing
 	Win
@@ -44,6 +44,10 @@ func (p *Player) WithSymbol(symbol rune) *Player {
 	return p
 }
 
+func (p *Player) CanJoin() bool {
+	return p.Player.CanJoin() && p.Status == WaitingToJoin && p.Name != ""
+}
+
 func (p *Player) Playing() bool {
 	return p.Status == Playing
 }
@@ -58,7 +62,7 @@ func (p *Player) Labels() string {
 		labels = append(labels, "symbol-2")
 	}
 	switch p.Status {
-	case WaitingToStart:
+	case WaitingToJoin:
 		labels = append(labels, "waiting-to-start")
 	case WaitingToPlay:
 		labels = append(labels, "waiting-to-play")

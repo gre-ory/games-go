@@ -62,10 +62,10 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 type JsonMessage struct {
 	// Headers    *JsonHeaders `json:"HEADERS,omitempty"`
 	Action     string `json:"action,omitempty"`
-	PlayerName string `json:"player_name,omitempty"`
-	GameId     string `json:"game_id,omitempty"`
-	PlayX      string `json:"play_x,omitempty"`
-	PlayY      string `json:"play_y,omitempty"`
+	PlayerName string `json:"name,omitempty"`
+	GameId     string `json:"game,omitempty"`
+	PlayX      string `json:"x,omitempty"`
+	PlayY      string `json:"y,omitempty"`
 }
 
 type JsonHeaders struct {

@@ -1,20 +1,19 @@
-{{define "board"}}
-    <div id="board" class="htmx-content" hx-swap-oob="innerHTML">
+{{- define "board" }}
+    <div id="board" class="{{ .player.Labels }}" hx-swap-oob="outerHTML">
         {{- $playing := .player.Playing }}
-        <div class="{{ .player.Labels }}">
+        <div class="board">
             {{- range $y, $row := .game.Rows }}
                 <div class="row">
                     {{- range $x, $cell := $row.Cells }}
                         <div class="cell-container">
                         {{- if and $playing .IsEmpty }}
-                            <form>
-                                <input type="hidden" name="action" value="play"/>
-                                <input type="hidden" name="play_x" value="{{ $x }}"/>
-                                <input type="hidden" name="play_y" value="{{ $y }}"/>
-                                <div ws-send class="{{ .Labels }}">&nbsp;</div>
-                            </form>
+                            <div class="{{ .Labels }}" 
+                                ws-send
+                                data-action="play"
+                                data-x="{{ $x }}"
+                                data-y="{{ $y }}"> </div>
                         {{- else if .IsEmpty }}
-                            <div class="{{ .Labels }}">&nbsp;</div>
+                            <div class="{{ .Labels }}"> </div>
                         {{- else }}
                             <div class="{{ .Labels }}">{{ . }}</div>
                         {{- end }}
@@ -24,4 +23,4 @@
             {{- end }}
         </div>
     </div>
-{{end}}
+{{- end }}

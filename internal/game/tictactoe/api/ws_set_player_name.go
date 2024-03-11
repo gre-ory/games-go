@@ -12,7 +12,7 @@ import (
 func (s *gameServer) ws_set_player_name(player *model.Player, message JsonMessage) error {
 	s.logger.Info("[ws] set_player_name", zap.Any("message", message))
 
-	playerId := player.GetId()
+	playerId := player.Id()
 
 	playerName := message.PlayerName
 	if playerName == "" {

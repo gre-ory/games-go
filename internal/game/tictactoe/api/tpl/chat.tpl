@@ -1,5 +1,5 @@
-{{define "chat"}}
+{{- define "chat" }}
     <div>
         ...
     </div>
-{{end}}
+{{- end }}

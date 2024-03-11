@@ -14,6 +14,7 @@ func (s *gameServer) ws_play(player *model.Player, message JsonMessage) error {
 	if playX == 0 {
 		return model.ErrMissingPlayX
 	}
+
 	playY := util.ToInt(message.PlayY)
 	if playY == 0 {
 		return model.ErrMissingPlayY

@@ -21,7 +21,7 @@ type playerStore struct {
 }
 
 func (s *playerStore) Set(player *model.Player) error {
-	s.players[player.GetId()] = player
+	s.players[player.Id()] = player
 	return nil
 }
 

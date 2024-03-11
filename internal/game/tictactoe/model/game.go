@@ -41,7 +41,7 @@ func (g *Game) Started() bool {
 }
 
 func (g *Game) WithPlayer(player *Player) *Game {
-	g.Players[player.GetId()] = player
+	g.Players[player.Id()] = player
 	player.SetGameId(g.Id)
 	return g
 }
@@ -87,7 +87,7 @@ func (g *Game) GetCurrentPlayer() (*Player, error) {
 func (g *Game) WrapData(data websocket.Data, player *Player) (bool, any) {
 	data = data.With("game", g)
 
-	playerId := player.GetId()
+	playerId := player.Id()
 	if playerId == "" {
 		return true, data
 	}
@@ -113,7 +113,7 @@ func (g *Game) NextRound() {
 func (g *Game) SetPlayingPlayer() {
 	currentPlayerId := g.getCurrentPlayerId()
 	for _, player := range g.Players {
-		if currentPlayerId == player.GetId() {
+		if currentPlayerId == player.Id() {
 			player.Status = Playing
 		} else {
 			player.Status = WaitingToPlay
@@ -148,7 +148,7 @@ func (g *Game) HasWinner() (bool, PlayerId) {
 func (g *Game) GetPlayerIdFromRune(symbol rune) PlayerId {
 	for _, player := range g.Players {
 		if player.Symbol == symbol {
-			return player.GetId()
+			return player.Id()
 		}
 	}
 	return ""

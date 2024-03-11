@@ -9,6 +9,7 @@
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
+    <script src="/static/share/ws.js"></script>
     <script src="/static/tictactoe/game.js"></script>
     <!-- css -->
     <link rel="stylesheet" href="/static/share/pico.min.css"/>
@@ -17,11 +18,16 @@
 </head>
 <body>
     <div id="main" hx-ext="ws" ws-connect="/htmx/tictactoe/connect">
-        <div id="header">{{ .title }} / {{ .cookie.PlayerId }}</div>
-        <div id="content"></div>
+        <div id="header">
+            {{ .title }}
+            <span id="ws-status"/>
+        </div>
+        <div id="content">
+            <span class="loading"></span>
+        </div>
         <div id="errors"></div>
         <div id="notifications"></div>
-        <span id="ws-status"/>
+        
     </div>
 </body>
 </html>
