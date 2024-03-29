@@ -5,7 +5,7 @@ log:
   env: dev
   encoder: dev
   level: info
-  file: $HOME/_own/log/games.log
+  file: $HOME/_loc/log/games.log
 server:
   address: :9090
   white-list-origins:
