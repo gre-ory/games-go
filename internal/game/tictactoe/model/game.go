@@ -1,6 +1,7 @@
 package model
 
 import (
+	"html/template"
 	"strings"
 
 	"github.com/gre-ory/games-go/internal/util"
@@ -46,8 +47,9 @@ func (g *Game) WithPlayer(player *Player) *Game {
 	return g
 }
 
-func (g *Game) WithoutPlayer(playerId PlayerId) *Game {
-	delete(g.Players, playerId)
+func (g *Game) WithoutPlayer(player *Player) *Game {
+	delete(g.Players, player.Id())
+	player.UnsetGameId()
 	return g
 }
 
@@ -235,16 +237,23 @@ func (c *Cell) Play(player *Player) error {
 
 func (c *Cell) Labels() string {
 	labels := make([]string, 0)
-	labels = append(labels, "cell")
 	switch c.Symbol {
-	case NO_SYMBOL:
-		labels = append(labels, "empty")
 	case PLAYER_ONE_SYMBOL:
 		labels = append(labels, "symbol-1")
 	case PLAYER_TWO_SYMBOL:
 		labels = append(labels, "symbol-2")
 	}
 	return strings.Join(labels, " ")
+}
+
+func (c *Cell) IconHtml() template.HTML {
+	switch c.Symbol {
+	case PLAYER_ONE_SYMBOL:
+		return "<div class=\"icon-cross\"></div>"
+	case PLAYER_TWO_SYMBOL:
+		return "<div class=\"icon-circle\"></div>"
+	}
+	return ""
 }
 
 func (c *Cell) String() string {

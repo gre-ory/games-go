@@ -43,14 +43,20 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 		}()
 
 		switch jsonMessage.Action {
-		case "set-name":
-			err = s.ws_set_player_name(player, jsonMessage)
+		// case "set-name":
+		// 	err = s.ws_set_player_name(player, jsonMessage)
 		case "create-game":
 			err = s.ws_create_game(player, jsonMessage)
 		case "join-game":
 			err = s.ws_join_game(player, jsonMessage)
+		case "start-game":
+			err = s.ws_start_game(player, jsonMessage)
 		case "play":
 			err = s.ws_play(player, jsonMessage)
+		case "leave-game":
+			err = s.ws_leave_game(player, jsonMessage)
+		default:
+			err = model.ErrMissingAction
 		}
 	}
 

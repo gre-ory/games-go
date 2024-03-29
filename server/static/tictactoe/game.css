@@ -1,32 +1,331 @@
 
+/* ------------------------- body ------------------------- */
+
 body {
-    font-family:monospace;
+    /* font-family:monospace; */
+    /* font-size: 42px;  */
+    font-family: "Luciole", monospace, Georgia;
+    /* font-family: "Luciole"; */
+}
+
+button {
+    font-family: Luciole;
+}
+
+body {
+
+    /* Blueberry: #6B7A8F
+    Apricot: #F7882F
+    Citrus: #F7C331
+    Apple Core: #DCC7AA */
+
+    /* Are ya yellow?!: #feda6a
+    Silver Fox: #d4d4dc
+    Deep Matte Grey: #393f4d
+    Dark Slate: #1d1e22 */
+
+    /* Ol’ trusty blue: #368cbf
+    Accent color green: #7ebc59
+    Dark Slate: #33363b
+    Light grey: #eaeaea */
+
     --color-red: #b71348;
     --color-blue: #2688d1;
-    --color-green: #00ad94;
+    --color-light-blue: #72c2ff;
+    --color-green: #03ca88;
+    --color-light-green: #78eeaf;
     --color-yellow: #f2ae16;
+    --color-light-yellow: #f7cf7a;
     --color-dark: #042b49;
+    --color-brown: #a47e68;
     --color-light-brown: #d5bdaf;
     --color-light: #f0f2f4;
+    --color-light-gray: rgb(185, 185, 185);
+    --color-gray: #777;
+
+    --color-error: var(--color-red);
+    --color-info: var(--color-green);
+    --color-win: var(--color-green);
+    --color-tie: var(--color-dark);
+    --color-loose: var(--color-red);
+
+    --icon-size: 14px;
+    --icon-color: var(--color-dark);
+
+    --color-player-1: var(--color-yellow);
+    --color-player-2: var(--color-blue);
+
+    --color-disabled: var(--color-gray);
+    --color-loading: var(--color-yellow);
+    --color-error: var(--color-red);
+    --color-success: var(--color-green);
+
+    /* background: #262626; */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* ------------------------- skeleton ------------------------- */
+
+body {
+    width: 100vw;
+    height: 100vh;
+
+    --width: 500px;
+    --border-spacing: 10px;
+}
+
+@media ( max-width: 500px ) {
+    body {
+        --width: 100vw;
+    }
+}
+
+@media ( max-width: 300px ) {
+    body {
+        --width: 300px;
+        min-width: 300px;
+    }
+}
+
+body {
+    --header-height: calc(0.1 * var(--width));
+    --players-width: var(--width);
+    --players-height: 85px;
+    --players-border-spacing: var(--border-spacing);
+    --board-height: var(--width);
+    --board-border-spacing: var(--border-spacing);
+    --player-height: calc(0.5 * var(--board-height));
+    --height: calc(var(--header-height) + var(--players-height) + var(--board-height) + var(--player-board-height));
+}
+
+#user {
+    display: inline;
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: var(--header-height);
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+}
+
+#user .name {
+    margin-left: 5px;
+    max-width: calc(var(--width) * 0.3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 30px;
+}
+
+#user .id,
+#user .language {
+    display: none;
+}
+
+#ws-status {
+    display: none;
 }
 
 #main {
-    padding: 10px;
-}
-
-#header:before {
-    content: "Header";
-    font-weight: bold;
-    color: var(--color-dark); 
-    display: inline;
-    margin-top: -20px;
-    background-color: white;
-    position: absolute;
-    padding: 0px 5px;
-    font-size: small;
+    width: var(--width);
+    margin: 0 auto;
 }
 
 #header {
+    width: var(--width);
+    height: var(--header-height);
+    line-height: var(--header-height);
+}
+
+#header .title {
+    display: inline-block;
+    margin-left: calc(0.5 * var(--header-height));
+}
+
+#content {
+    padding-bottom: 10px;
+    /* min-height: calc(var(--players-height) + var(--board-height)); */
+    min-height: calc(100vh - var(--header-height) - 10px);
+}
+
+#players {
+    width: var(--width);
+    height: var(--players-height);
+    border-spacing: var(--players-border-spacing);
+}
+
+#board {
+    --board-padding: calc(var(--width) / 10);
+    --board-size: calc(var(--width) - ( 2 * var(--board-padding) ));
+    /* --board-size: calc(var(--width) - ( 2 * var(--board-padding) )); */
+    width: var(--board-size);
+    height: var(--board-size);
+    padding: var(--board-padding);
+}
+
+#board .board {
+    display: table;
+    table-layout: fixed;
+
+    width: var(--board-size);
+    height: var(--board-size);
+    border-spacing: var(--board-border-spacing);
+
+    --cell-size: calc( ( var(--board-size) - ( 4 * var(--board-border-spacing) ) ) / 3 );
+}
+
+#board .board .row {
+    display: table-row;
+    width: var(--board-size);
+    height: var(--cell-size);
+}
+
+#board .board .row .cell {
+    display: table-cell;
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border-radius: var(--board-border-spacing);
+    text-align: center;
+    vertical-align: middle;
+    padding: 0;
+}
+
+#player {
+    width: var(--width);
+    height: var(--player-height);
+    display: none;
+}
+
+/* ------------------------- style ------------------------- */
+
+body {
+    background-color: rgb(53, 65, 106);
+}
+
+#user {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#user .name {
+    font-weight: bold;
+    color: white;    
+    font-size: small;
+}
+
+#main {
+    background-color: rgb(227, 227, 227);
+}
+
+#header {
+    background-color: var(--color-blue);
+    font-weight: bold;
+    color: white;
+}
+
+#players .player {
+    --item-title-background-color: var(--color-light-gray);
+}
+
+#players .player [class^='avatar-'] {
+    margin-right: 5px;
+}
+
+#players .player .title .name {
+    --text-max-width: calc(100% - 35px);
+    display: inline-block;
+    font-size: small;
+}
+
+#players .player.playing.symbol-1 {
+    --item-title-background-color: var(--color-yellow);
+}
+
+#players .player.playing.symbol-1 .content [class^='icon-'] {
+    --icon-size: 20px;
+    background-color: var(--color-yellow);
+}
+
+#players .player.playing.symbol-2 {
+    --item-title-background-color: var(--color-blue);
+}
+
+#players .player.playing.symbol-2 .content [class^='icon-'] {
+    --icon-size: 20px;
+    background-color: var(--color-blue);
+}
+
+#players .player.win {
+    --item-title-background-color: var(--color-green);
+}
+
+#players .player.loose {
+    --item-title-background-color: var(--color-red);
+}
+
+#players .player.tie {
+    --item-title-background-color: var(--color-light-gray);
+}
+
+/* #players .player.playing .content {
+    color: var(--color-green);
+} */
+
+/* #players .player.playing .title,
+#players .player.playing .content {
+    color: white;
+} */
+
+/* #players .player.playing .content [class^="icon-"] {
+    background-color: var(--color-green) !important;
+} */
+
+/* #players .content [class^="avatar-"] {
+    margin-left: 10px;
+    margin-right: 10px;
+} */
+
+.board .cell {
+    background-color: var(--color-light-brown);
+    border: 2px solid var(--color-brown);
+
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.board .cell [class^="icon-"] {
+    background-color: white;
+    --icon-size: 70%;
+}
+
+.board .cell.symbol-1 {
+    background-color: var(--color-yellow);
+}
+
+.board .cell.symbol-2 {
+    background-color: var(--color-blue);
+}
+
+.player.playing.symbol-1 .cell.select:hover {
+    background-color: var(--color-yellow);
+    cursor: pointer;
+}
+
+.player.playing.symbol-2 .cell.select:hover {
+    background-color: var(--color-blue);
+    cursor: pointer;
+}
+
+/* ------------------------- header ------------------------- */
+
+/* ------------------------- sections ------------------------- */
+
+/* .section {
     margin: 0px;
     margin-top: 10px;
     padding: 10px;
@@ -37,11 +336,11 @@ body {
     width: 100%;
 }
 
-/* #content:before {
-    content: "Content";
+.section-title {
     font-weight: bold;
     color: var(--color-dark); 
-    display: inline;
+    display: flex;
+    align-items: center;
     margin-top: -20px;
     background-color: white;
     position: absolute;
@@ -49,43 +348,26 @@ body {
     font-size: small;
 } */
 
-#content {
-    margin: 0px;
+/* #header {
+    display: inline-block;
+} */
+
+
+
+/* .section.players {
+    float: right;
+    width: calc(40% - 10px);
     margin-top: 10px;
-    /* padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px; */
-    
-    display: inline-block;
-    width: 100%;
-    vertical-align: top;
-}
+    margin-left: 10px;
+} */
 
-#players:before {
-    content: "Players";
-    font-weight: bold;
-    color: var(--color-dark); 
-    display: inline;
-    margin-top: -20px;
-    background-color: white;
-    position: absolute;
-    padding: 0px 5px;
-    font-size: small;
-}
+/* .section.header {
+    width: calc(60% - 10px);
+} */
 
-#players {
-    margin: 0px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
+/* ------------------------- players ------------------------- */
 
-    display: inline-block;
-    width: calc(40% - 6px);
-    vertical-align: top;
-    font-size: 12px;
-}
-
-#players .player:before {
+/* #players .player:before {
     content: "-";
     white-space:pre;
     color: var(--color-dark);
@@ -123,174 +405,145 @@ body {
 #players .player.symbol-2:after {
     content: " [O]";
     color: var(--color-blue);
-}
+} */
 
-#players .player {
+/* #players {
+    float: right;
+    width: 40%;
+} */
+
+/* #players .player {
     color: var(--color-dark);
-    display: block;
+    align-items: center;
+    display: inline-flex;
+} */
+
+/* #players .player .name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
 }
 
-#board:before {
-    content: "Board";
-    font-weight: bold;
-    color: var(--color-dark); 
-    display: inline;
-    margin-top: -20px;
-    background-color: white;
-    position: absolute;
-    padding: 0px 5px;
-    font-size: small;
+#players .player [class^='avatar-'] {
+    margin-right: 5px;
 }
 
-#board {
-    margin: 0px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
+#players .icon-play,
+#players .icon-pause,
+#players .icon-win,
+#players .icon-tie,
+#players .icon-loose {
+    margin-right: 5px;
+}
 
+#players .icon-cross,
+#players .icon-circle {
+    margin-left: 5px;
+}
+
+#players .icon-pause {
+    --icon-color: var(--color-light-brown);
+}
+
+#players .icon-play {
+    --icon-color: var(--color-green);
+}
+
+#players .icon-cross {
+    --icon-color: var(--color-player-1);
+}
+
+#players .icon-circle {
+    --icon-color: var(--color-player-2);    margin-left: 5px;
+} */
+
+/* ------------------------- board ------------------------- */
+
+/* .board {
     display: inline-block;
-    width: calc(60% - 4px);
-    vertical-align: top;
+    width: 200px;
+    padding-bottom: 10px;
+}
+
+.board .row {
+    display: inline-block;
+    margin-top: 10px;
+    padding-right: 10px;
+}
+
+.board .cell {
+    display: inline-block;
+    margin-left: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 5px;
+    box-shadow: gray 3px 3px 0px;
+    line-height: 40px;
+    font-family: monospace;
+    white-space:pre;
+    font-size: 40px;
+    color: white;
+    font-weight: bold;
     text-align: center;
 }
 
-#board.player.playing {
-    border: 3px solid var(--color-red);
+.board .cell.empty {
+    background-color: var(--color-light-brown);
 }
 
-#board .board {
-    display: inline-block;
+.board .cell.symbol-1 {
+    background-color: var(--color-player-1);
 }
 
-#notifications:before {
-    content: "Notifications";
-    font-weight: bold;
-    color: var(--color-dark); 
-    display: inline;
-    margin-top: -20px;
-    background-color: white;
-    position: absolute;
-    padding: 0px 5px;
-    font-size: small;
+.board .cell.symbol-2 {
+    background-color: var(--color-player-2);
 }
 
-#notifications {
-    margin-top: 10px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
-
-    display: inline-block;
-    width: 100%;
+.board .player.playing.symbol-1 .cell.empty:hover {
+    background-color: var(--color-player-1);
+    cursor: pointer;
 }
 
-#errors:before {
-    content: "Errors";
-    font-weight: bold;
-    color: var(--color-dark); 
-    display: inline;
-    margin-top: -20px;
-    background-color: white;
-    position: absolute;
-    padding: 0px 5px;
-    font-size: small;
-}
+.board .player.playing.symbol-2 .cell.empty:hover {
+    background-color: var(--color-player-2);
+    cursor: pointer;
+} */
 
-#errors {
-    margin: 0px;
-    margin-top: 10px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
-
-    display: inline-block;
-    width: 100%;
-    color: darkred;
-}
-
-.websocket {
-    margin: 0px;
-    padding: 10px;
-    border: 1px solid var(--color-dark);
-    border-radius: 5px;
-
-    display: inline-block;
-    width: 100%;
-}
+/* ------------------------- loading ------------------------- */
 
 .loading {
     margin: auto;
     color: var(--color-dark);
 }
 
-#board .cell-container {
-    display: inline-block;
-    width: 40px;
-    height: 40px;
-    margin-right: 5px;
-    margin-bottom: 10px;
-}
-
-#board .cell {
-    font-family: monospace;
-    display: inline-block;
-    width: 40px;
-    height: 40px;
-    line-height: 40px;
-    font-size: 40px;
-    color: white;
-    font-weight: bold;
-    border-radius: 5px;
-    box-shadow: gray 3px 3px 0px;
-    text-align: center;
-    margin: 0px;
-    white-space:pre;
-}
-
-#board .cell.empty {
-    background-color: var(--color-light-brown);
-}
-
-#board .cell.symbol-1 {
-    background-color: var(--color-yellow);
-}
-
-#board .cell.symbol-2 {
-    background-color: var(--color-blue);
-}
-
-#board .player.playing.symbol-1 .cell.empty:hover {
-    background-color: var(--color-yellow);
-    cursor: pointer;
-}
-
-#board .player.playing.symbol-2 .cell.empty:hover {
-    background-color: var(--color-blue);
-    cursor: pointer;
-}
+/* ------------------------- websocket status ------------------------- */
 
 #ws-status {
-	color: var(--color-dark);
     float:right;
+	width: 24px;
+	height: 24px;
 }
-#ws-status::before {
-	content: "";
-	display: inline-block;
-	width: 25px;
-	height: 19px;
-	margin-right: 0.2em;
-	vertical-align: middle;
-	background-image: url(/static/share/ws-status.png);
-	background-repeat: no-repeat;
-	background-position: left center;
-	background-size: 100px 19px;
-}
-#ws-[data-status="connected"] { color: var(--color-green); }
-#ws-status[data-status="error"] { color: var(--red-color); }
-#ws-status[data-status="connecting"] { color: var(--color-blue); }
-#ws-status[data-status="disconnected"] { color: var(--color-yellow); }
 
-#ws-status[data-status="connected"]::before { background-position: left center; }
-#ws-status[data-status="error"]::before { background-position: -25px center; }
-#ws-status[data-status="connecting"]::before { background-position: -50px center; }
-#ws-status[data-status="disconnected"]::before { background-position: right center; }
+#ws-status #cloud-on,
+#ws-status #cloud-connecting,
+#ws-status #cloud-error,
+#ws-status #cloud-off {
+    display: none;
+}
+
+#ws-status.cloud-on #cloud-on {
+    display: inline-block;
+}
+
+#ws-status.cloud-connecting #cloud-connecting {
+    display: inline-block;
+}
+
+#ws-status.cloud-error #cloud-error {
+    display: inline-block;
+}
+
+#ws-status.cloud-off #cloud-off {
+    display: inline-block;
+}

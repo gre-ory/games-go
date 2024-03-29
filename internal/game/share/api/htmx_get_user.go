@@ -1,0 +1,33 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/gre-ory/games-go/internal/game/share/model"
+	"github.com/gre-ory/games-go/internal/util"
+)
+
+// //////////////////////////////////////////////////
+// get user
+
+func (s *cookieServer) htmx_get_user(w http.ResponseWriter, r *http.Request) {
+
+	var cookie *model.Cookie
+	var err error
+
+	switch {
+	default:
+
+		cookie, err = s.GetValidCookie(r)
+		if err != nil {
+			break
+		}
+
+		s.SetCookie(w, cookie)
+		s.hxServer.Render(w, "user", cookie.Data())
+		return
+	}
+
+	// error response
+	util.EncodeJsonErrorResponse(w, err)
+}

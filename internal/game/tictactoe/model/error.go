@@ -17,6 +17,8 @@ var (
 	ErrMissingPlayX         = fmt.Errorf("missing play x")
 	ErrMissingPlayY         = fmt.Errorf("missing play y")
 	ErrGameStopped          = fmt.Errorf("game stopped")
+	ErrGameNotStopped       = fmt.Errorf("game not stopped")
 	ErrAlreadyPlayOnCell    = fmt.Errorf("already played on cell")
 	ErrMissingAction        = fmt.Errorf("missing action")
+	ErrUnknownAction        = fmt.Errorf("unknown action")
 )

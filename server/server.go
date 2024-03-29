@@ -14,19 +14,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/gre-ory/games-go/internal/util/list"
+
 	"github.com/gre-ory/games-go/internal/game/tictactoe/api"
 	"github.com/gre-ory/games-go/internal/game/tictactoe/service"
 	"github.com/gre-ory/games-go/internal/game/tictactoe/store"
-	user_api "github.com/gre-ory/games-go/internal/game/user/api"
-	user_service "github.com/gre-ory/games-go/internal/game/user/service"
-	user_store "github.com/gre-ory/games-go/internal/game/user/store"
-	"github.com/gre-ory/games-go/internal/util/list"
-	"github.com/julienschmidt/httprouter"
 )
 
 // //////////////////////////////////////////////////
@@ -67,7 +65,6 @@ func main() {
 	// store
 	//
 
-	sessionStore := user_store.NewSessionStore()
 	gameStore := store.NewGameStore()
 	playerStore := store.NewPlayerStore()
 
@@ -75,22 +72,19 @@ func main() {
 	// service
 	//
 
-	sessionService := user_service.NewSessionService(sessionStore)
 	gameService := service.NewGameService(gameStore, playerStore)
 
 	//
 	// api
 	//
 
-	sessionServer := user_api.NewSessionServer(logger, sessionService)
-	gameServer := api.NewGameServer(logger, sessionServer, gameService, secret.CookieSecret)
+	gameServer := api.NewGameServer(logger, gameService, secret.CookieSecret)
 
 	//
 	// router
 	//
 
 	router := httprouter.New()
-	sessionServer.RegisterRoutes(router)
 	gameServer.RegisterRoutes(router)
 	router.NotFound = http.FileServer(http.FS(staticFS))
 
@@ -123,24 +117,22 @@ func main() {
 func NewLogger(config LogConfig) *zap.Logger {
 
 	fmt.Printf("config.Env: [%s] \n", config.Env)
+	var cfg zap.Config
 	switch config.Env {
 	case "prd":
-		logger, err := zap.NewProductionConfig().Build()
-		if err == nil {
-			logger.Info("logger has been initialized", zap.String("env", config.Env))
-			return logger
-		} else {
-			fmt.Printf("error: %s \n", err.Error())
-		}
+		cfg = zap.NewProductionConfig()
 	case "dev":
-		logger, err := zap.NewDevelopmentConfig().Build()
-		if err == nil {
-			logger.Info("logger has been initialized", zap.String("env", config.Env))
-			return logger
-		} else {
-			fmt.Printf("error: %s \n", err.Error())
-		}
+		cfg = zap.NewDevelopmentConfig()
+		// cfg.Development = false
 	default:
+	}
+
+	logger, err := cfg.Build()
+	if err == nil {
+		logger.Info("logger has been initialized", zap.String("env", config.Env))
+		return logger
+	} else {
+		fmt.Printf("error: %s \n", err.Error())
 	}
 
 	writer := zapcore.AddSync(&lumberjack.Logger{
@@ -184,7 +176,7 @@ func NewLogger(config LogConfig) *zap.Logger {
 		zapLevel,
 	)
 
-	logger := zap.New(core)
+	logger = zap.New(core)
 	logger.Info("logger has been initialized", zap.String("encoder", config.Encoder), zap.String("level", config.Level))
 	return logger
 }

@@ -4,8 +4,11 @@
 
 function updateWsStatus( value ) {
     let status = document.getElementById('ws-status');
-    status.innerText = value;
-	status.setAttribute( 'data-status', value );
+    if ( status ) {
+        status.className = `cloud-${value}`;
+    } else {
+        console.log(`element #ws-status NOT found!`)
+    }
 }
 
 // //////////////////////////////////////////////////
@@ -37,11 +40,11 @@ function defaultOnWsConnecting( event ) {
 }
 
 function defaultOnWsOpen( event ) {
-    updateWsStatus( 'connected' )
+    updateWsStatus( 'on' )
 }
 
 function defaultOnWsClose( event ) {
-    updateWsStatus( 'disconnected' )
+    updateWsStatus( 'off' )
 }
 
 function defaultOnWsError( event ) {

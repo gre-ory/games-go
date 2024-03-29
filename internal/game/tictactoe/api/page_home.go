@@ -14,11 +14,11 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 	// cookie
 	//
 
-	cookie := s.GetCookieOrDefault(r, NewCookie)
+	cookie := s.GetCookieOrDefault(r)
 
 	resetCookie := util.ExtractBoolParameter(r, "reset_cookie")
 	if resetCookie {
-		cookie = NewCookie()
+		cookie = s.NewCookie()
 	}
 
 	s.SetCookie(w, cookie)
@@ -28,7 +28,8 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 	//
 
 	s.Render(w, "page-home", map[string]any{
-		"title":  "Tic Tac Toe",
+		// "title":  "Tic Tac Toe",
+		"title":  "TTT",
 		"cookie": cookie,
 	})
 }

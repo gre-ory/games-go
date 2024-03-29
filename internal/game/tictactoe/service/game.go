@@ -13,9 +13,10 @@ type GameService interface {
 	GetGame(id model.GameId) (*model.Game, error)
 	NewGame() (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
+	StartGame(player *model.Player) (*model.Game, error)
 	PlayGame(player *model.Player, x, y int) (*model.Game, error)
-	LeaveGame(id model.GameId, playerId model.PlayerId) (*model.Game, error)
-	DeleteGame(id model.GameId) error
+	LeaveGame(player *model.Player) (*model.Game, error)
+	DeleteGame(id model.GameId, playerId model.PlayerId) error
 	WrapData(data websocket.Data, player *model.Player) (bool, any)
 }
 
@@ -66,9 +67,24 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 	game = game.WithPlayer(player)
 
 	if game.CanStart() {
-		return s.startGame(game)
+		for _, player := range game.Players {
+			player.Status = model.WaitingToStart
+		}
+	} else {
+		for _, player := range game.Players {
+			player.Status = model.WaitingToJoin
+		}
 	}
+
 	return s.storeGame(game)
+}
+
+func (s *gameService) StartGame(player *model.Player) (*model.Game, error) {
+	game, err := s.gameStore.Get(player.GameId())
+	if err != nil {
+		return nil, err
+	}
+	return s.startGame(game)
 }
 
 func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
@@ -131,24 +147,40 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 	return s.storeGame(game)
 }
 
-func (s *gameService) LeaveGame(id model.GameId, playerId model.PlayerId) (*model.Game, error) {
-	game, err := s.gameStore.Get(id)
+func (s *gameService) LeaveGame(player *model.Player) (*model.Game, error) {
+	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		return nil, err
 	}
-	return s.leaveGame(game, playerId)
+	return s.leaveGame(game, player)
 }
 
-func (s *gameService) leaveGame(game *model.Game, playerId model.PlayerId) (*model.Game, error) {
+func (s *gameService) leaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
 	if game.Stopped {
-		return nil, model.ErrGameStopped
+		player.UnsetGameId()
+		return game, nil
 	}
 	if !game.Started() {
-		game = game.WithoutPlayer(playerId)
-		return s.storeGame(game)
+		game = game.WithoutPlayer(player)
+		if len(game.Players) == 0 {
+			return nil, s.deleteGame(game)
+		} else {
+
+			if game.CanStart() {
+				for _, player := range game.Players {
+					player.Status = model.WaitingToStart
+				}
+			} else {
+				for _, player := range game.Players {
+					player.Status = model.WaitingToJoin
+				}
+			}
+
+			return s.storeGame(game)
+		}
 	}
 	winnerId := game.PlayerIds[0]
-	if game.PlayerIds[0] == playerId {
+	if game.PlayerIds[0] == player.Id() {
 		winnerId = game.PlayerIds[1]
 	}
 	return s.stopGame(game, winnerId)
@@ -184,8 +216,22 @@ func (s *gameService) storeGame(game *model.Game) (*model.Game, error) {
 	return game, nil
 }
 
-func (s *gameService) DeleteGame(id model.GameId) error {
-	return s.gameStore.Delete(id)
+func (s *gameService) DeleteGame(id model.GameId, playerId model.PlayerId) error {
+	game, err := s.gameStore.Get(id)
+	if err != nil {
+		return err
+	}
+	if _, err := game.GetPlayer(playerId); err != nil {
+		return err
+	}
+	return s.deleteGame(game)
+}
+
+func (s *gameService) deleteGame(game *model.Game) error {
+	if game.Started() && !game.Stopped {
+		return model.ErrGameNotStopped
+	}
+	return s.gameStore.Delete(game.Id)
 }
 
 func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool, any) {

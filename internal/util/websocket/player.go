@@ -3,6 +3,7 @@ package websocket
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,9 +22,10 @@ type Player[IdT comparable, GameIdT comparable] interface {
 	CanJoin() bool
 
 	ConnectSocket(w http.ResponseWriter, r *http.Request) error
-	ReadSocket()
-	WriteSocket()
+	// ReadSocket()
+	// WriteSocket()
 
+	Active() bool
 	Activate()
 	Deactivate()
 
@@ -50,26 +52,34 @@ var upgrader = ws.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func NewPlayer[IdT comparable, GameIdT comparable](logger *zap.Logger, id IdT, onMessage func(id IdT, message []byte), onClose func(id IdT)) Player[IdT, GameIdT] {
+func NewPlayer[IdT comparable, GameIdT comparable](
+	logger *zap.Logger,
+	id IdT,
+	onMessage func(id IdT, message []byte),
+	onUpdate func(id IdT),
+	onClose func(id IdT),
+) Player[IdT, GameIdT] {
 	return &player[IdT, GameIdT]{
 		id:        id,
 		logger:    logger,
-		active:    true,
-		send:      make(chan []byte, 256),
 		onMessage: onMessage,
+		onUpdate:  onUpdate,
 		onClose:   onClose,
 	}
 }
 
 type player[IdT comparable, GameIdT comparable] struct {
-	id        IdT
-	gameId    GameIdT
-	logger    *zap.Logger
-	active    bool
-	send      chan []byte
-	conn      *ws.Conn
-	onMessage func(id IdT, message []byte)
-	onClose   func(id IdT)
+	sync.Mutex
+	id         IdT
+	gameId     GameIdT
+	logger     *zap.Logger
+	active     bool
+	send       chan []byte
+	pingTicker *time.Ticker
+	onMessage  func(id IdT, message []byte)
+	onUpdate   func(id IdT)
+	onClose    func(id IdT)
+	conn       *ws.Conn
 }
 
 func (p *player[IdT, GameIdT]) HasId() bool {
@@ -108,25 +118,35 @@ func (p *player[IdT, GameIdT]) ConnectSocket(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
-	p.conn = conn
+	p.Open(conn)
 	go p.WriteSocket()
 	go p.ReadSocket()
+	p.Activate()
 	return nil
 }
 
 func (p *player[IdT, GameIdT]) ReadSocket() {
-	p.logger.Info(fmt.Sprintf("[ws] player %v :: read :: OPEN", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.id))
 	p.Activate()
 	defer func() {
-		p.conn.Close()
-		// unregister
-		// p.onClose(p.id)
+		p.logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED", p.id))
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC → ERROR", p.id), zap.Error(err))
+			} else {
+				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.id), zap.Any("panic", r))
+			}
+		}
 		p.Deactivate()
-		p.logger.Info(fmt.Sprintf("[ws] player %v :: read :: CLOSED", p.id))
+		p.Close()
 	}()
 	p.conn.SetReadLimit(maxMessageSize)
 	p.conn.SetReadDeadline(time.Now().Add(pongWait))
-	p.conn.SetPongHandler(func(string) error { p.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	p.conn.SetPongHandler(func(msg string) error {
+		// p.logger.Info(fmt.Sprintf("[ws] player %v ← PONG", p.id), zap.Any("msg", msg))
+		p.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 	for {
 		_, message, err := p.conn.ReadMessage()
 		if err != nil {
@@ -143,12 +163,14 @@ func (p *player[IdT, GameIdT]) ReadSocket() {
 }
 
 func (p *player[IdT, GameIdT]) WriteSocket() {
-	p.logger.Info(fmt.Sprintf("[ws] player %v :: write :: OPEN", p.id))
-	ticker := time.NewTicker(pingPeriod)
+	p.logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.id))
 	defer func() {
-		ticker.Stop()
-		p.conn.Close()
-		p.logger.Info(fmt.Sprintf("[ws] player %v :: write :: CLOSED", p.id))
+		p.logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED", p.id))
+		if r := recover(); r != nil {
+			p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.id), zap.Any("panic", r))
+		}
+		p.Deactivate()
+		p.Close()
 	}()
 	for {
 		select {
@@ -156,6 +178,7 @@ func (p *player[IdT, GameIdT]) WriteSocket() {
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
+				p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSE message", p.id))
 				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -170,7 +193,8 @@ func (p *player[IdT, GameIdT]) WriteSocket() {
 			if err := w.Close(); err != nil {
 				return
 			}
-		case <-ticker.C:
+		case <-p.pingTicker.C:
+			// p.logger.Info(fmt.Sprintf("[ws] player %v → PING", p.id))
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
@@ -179,18 +203,86 @@ func (p *player[IdT, GameIdT]) WriteSocket() {
 	}
 }
 
-func (p *player[IdT, GameIdT]) Activate() {
-	p.active = true
-}
-
-func (p *player[IdT, GameIdT]) Deactivate() {
-	p.active = false
-}
-
 func (p *player[IdT, GameIdT]) Send(bytes []byte) {
-	p.send <- bytes
+	p.Lock()
+	defer p.Unlock()
+
+	if p.active && p.send != nil {
+		p.send <- bytes
+	}
+}
+
+func (p *player[IdT, GameIdT]) Open(conn *ws.Conn) {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.conn != nil {
+		p.close()
+	}
+
+	p.conn = conn
+	p.send = make(chan []byte, 256)
+	p.pingTicker = time.NewTicker(pingPeriod)
+	p.logger.Info(fmt.Sprintf("[ws] player %v → OPEN", p.id))
+}
+
+func (p *player[IdT, GameIdT]) Active() bool {
+	p.Lock()
+	defer p.Unlock()
+
+	return p.active
+}
+
+func (p *player[IdT, GameIdT]) Activate() {
+	p.Lock()
+	defer p.Unlock()
+
+	if !p.active {
+		p.active = true
+		if p.onUpdate != nil {
+			p.onUpdate(p.id)
+		}
+		p.logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.id))
+	}
 }
 
 func (p *player[IdT, GameIdT]) Close() {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.conn != nil {
+		p.close()
+	}
+}
+
+func (p *player[IdT, GameIdT]) close() {
+	if p.onClose != nil {
+		p.onClose(p.id)
+	}
+
+	p.pingTicker.Stop()
+	p.pingTicker = nil
+
+	p.logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.id))
 	close(p.send)
+	p.send = nil
+
+	p.logger.Info(fmt.Sprintf("[ws] player %v → close connection", p.id))
+	p.conn.Close()
+	p.conn = nil
+
+	p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSED", p.id))
+}
+
+func (p *player[IdT, GameIdT]) Deactivate() {
+	p.Lock()
+	defer p.Unlock()
+
+	if p.active {
+		p.active = false
+		if p.onUpdate != nil {
+			p.onUpdate(p.id)
+		}
+		p.logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.id))
+	}
 }
