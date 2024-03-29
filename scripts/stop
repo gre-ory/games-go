@@ -1,0 +1,24 @@
+#!/bin/bash
+
+PHASE=$( echo ${1} | awk '{ print tolower($0); }' )
+if [[ "${PHASE}" == "" ]]; then
+    if [[ "$PWD" =~ /_*stg/ ]]; then
+        PHASE="stg"
+    elif [[ "$PWD" =~ /_*prd/ ]]; then
+        PHASE="prd"
+    else
+        echo "missing phase!"
+        exit 1
+    fi
+fi
+if [[ "${PHASE}" != "stg" && "${PHASE}" != "prd"  ]]; then
+    echo "invalid phase!"
+    exit 1
+fi
+SERVICE="games.be"
+
+echo "~> sudo systemctl stop ${SERVICE}.${PHASE}.service"
+sudo systemctl stop ${SERVICE}.${PHASE}.service
+
+echo "~> sudo systemctl status ${SERVICE}.${PHASE}.service"
+sudo systemctl status ${SERVICE}.${PHASE}.service
