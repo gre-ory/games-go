@@ -7,7 +7,7 @@ log:
   level: info
   file: $HOME/_prd/log/games.log
 server:
-  address: :8193
+  address: :8093
   white-list-origins:
     - ''
     - http://localhost:9090
