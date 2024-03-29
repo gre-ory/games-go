@@ -1,0 +1,214 @@
+
+/* ------------------------- dice ------------------------- */
+
+.dice.large {
+    --dice-size: 100px;
+}
+
+.dice {
+    --dice-size: 50px;
+}
+
+.dice.small {
+    --dice-size: 20px;
+}
+
+.dice {
+    position: relative;
+    display: inline-block;
+    width: var(--dice-size);
+    height: var(--dice-size);
+    margin: calc(var(--dice-size)/10);
+    transform-style: preserve-3d;
+    transition: 2s ease;
+}
+
+/* ------------------------- faces ------------------------- */
+
+.dice [class^='face-'] {
+    --face-radius: calc(var(--dice-size) / 5);
+    --face-border: calc(var(--dice-size) / 20);
+
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--face-radius);
+    border: var(--face-border) solid #f6f3f0;
+    background: linear-gradient(
+        145deg, #dddbd8, #fff
+    );
+    transform-style: preserve-3d;
+}
+
+.dice [class^='face-']::before {
+    position: absolute;
+    content: '';
+    width: calc(100% + var(--face-border));
+    height: calc(100% + var(--face-border));
+    border-radius: calc(var(--face-radius) - var(--face-border));
+    background: #f6f3f0;
+    transform: translateZ(calc(-1 * var(--face-border)));
+}
+
+.dice [class^='face-'] [class^='dot-'] {
+    --dot-size: calc(var(--dice-size) / 5);
+    --dot-mid-size: calc(var(--dot-size) / 2);
+    --dot-left-pos: calc(25% - var(--dot-mid-size));
+    --dot-center-pos: calc(50% - var(--dot-mid-size));
+    --dot-right-pos: calc(75% - var(--dot-mid-size));
+    --dot-top-pos: calc(25% - var(--dot-mid-size));
+    --dot-bottom-pos: calc(75% - var(--dot-mid-size));
+
+    position: absolute;
+    width: var(--dot-size);
+    height: var(--dot-size);
+    top: var(--dot-center-pos); 
+    left: var(--dot-center-pos);
+    border-radius: 50%;
+    background: #131210;
+}
+
+.dice .face-1 .dot-1 { top: var(--dot-center-pos); left: var(--dot-center-pos); }
+
+.dice .face-2 .dot-1 { top: var(--dot-left-pos); left: var(--dot-top-pos); }
+.dice .face-2 .dot-2 { top: var(--dot-right-pos); left: var(--dot-bottom-pos); }
+
+.dice .face-3 .dot-1 { top: var(--dot-left-pos); left: var(--dot-top-pos); }
+.dice .face-3 .dot-2 { top: var(--dot-center-pos); left: var(--dot-center-pos); }
+.dice .face-3 .dot-3 { top: var(--dot-right-pos); left: var(--dot-bottom-pos); }
+
+.dice .face-4 .dot-1 { top: var(--dot-left-pos); left: var(--dot-top-pos); }
+.dice .face-4 .dot-2 { top: var(--dot-right-pos); left: var(--dot-top-pos); }
+.dice .face-4 .dot-3 { top: var(--dot-left-pos); left: var(--dot-bottom-pos); }
+.dice .face-4 .dot-4 { top: var(--dot-right-pos); left: var(--dot-bottom-pos); }
+
+.dice .face-5 .dot-1 { top: var(--dot-left-pos); left: var(--dot-top-pos); }
+.dice .face-5 .dot-2 { top: var(--dot-right-pos); left: var(--dot-top-pos); }
+.dice .face-5 .dot-3 { top: var(--dot-left-pos); left: var(--dot-bottom-pos); }
+.dice .face-5 .dot-4 { top: var(--dot-right-pos); left: var(--dot-bottom-pos); }
+.dice .face-5 .dot-5 { top: var(--dot-center-pos); left: var(--dot-center-pos); }
+
+.dice .face-6 .dot-1 { top: var(--dot-left-pos); left: var(--dot-top-pos); }
+.dice .face-6 .dot-2 { top: var(--dot-right-pos); left: var(--dot-top-pos); }
+.dice .face-6 .dot-3 { top: var(--dot-left-pos); left: var(--dot-bottom-pos); }
+.dice .face-6 .dot-4 { top: var(--dot-right-pos); left: var(--dot-bottom-pos); }
+.dice .face-6 .dot-5 { top: var(--dot-center-pos); left: var(--dot-left-pos); }
+.dice .face-6 .dot-6 { top: var(--dot-center-pos); left: var(--dot-right-pos); }
+
+.dice.paco .face-1 .dot-1 {
+    --icon-url: url('/static/share/icons/star.svg');
+    --dot-size: calc( 0.6 * var(--dice-size));
+
+    display: inline-block;
+    background-color: red !important;
+    width: var(--dot-size);
+    height: var(--dot-size);
+    top: var(--dot-center-pos); 
+    left: var(--dot-center-pos);
+    -webkit-mask-image: var(--icon-url);
+    mask-image: var(--icon-url);
+}
+
+.dice.picomino .face-6 [class^='dot-'] {
+    display: none;
+}
+.dice.picomino .face-6 .dot-1 {
+    --icon-url: url('/static/share/icons/egg.svg');
+    --dot-size: calc( 0.75 * var(--dice-size) );
+
+    display: inline-block;
+    background-color: red !important;
+    width: var(--dot-size);
+    height: var(--dot-size);
+    top: var(--dot-center-pos); 
+    left: var(--dot-center-pos);
+    -webkit-mask-image: var(--icon-url);
+    mask-image: var(--icon-url);
+}
+
+.dice .face-1 {
+    transform: translateZ(calc(var(--dice-size) / 2));
+}
+
+.dice .face-6 {
+    transform: rotateX(180deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.dice .face-2 {
+    transform: rotateX(90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.dice .face-5 {
+    transform: rotateX(-90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.dice .face-4 {
+    transform: rotateY(90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.dice .face-3 {
+    transform: rotateY(-90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+/* ------------------------- colors ------------------------- */
+
+.dice.red [class^='face-'] {
+    border-color: rgb(209, 0, 0);
+    background: linear-gradient(
+        145deg, rgb(169, 0, 0), rgb(209, 0, 0)
+    );
+}
+
+.dice.red [class^='face-']::before {
+    background: rgb(209, 0, 0);
+}
+
+.dice.green [class^='face-'] {
+    border-color: rgb(0, 189, 0);
+    background: linear-gradient( 
+        145deg, rgb(0, 149, 0), rgb(0, 189, 0)
+    );
+}
+
+.dice.green [class^='face-']::before {
+    background: rgb(0, 189, 0);
+}
+
+.dice.blue [class^='face-'] {
+    border-color: rgb(2, 105, 230);
+    background: linear-gradient(
+        145deg, rgb(0, 73, 162), rgb(2, 105, 230)
+    );
+}
+
+.dice.blue [class^='face-']::before {
+    background: rgb(2, 105, 230);
+}
+
+.dice.yellow [class^='face-'] {
+    border-color: rgb(236, 200, 0);
+    background: linear-gradient(
+        145deg, rgb(212, 181, 5), rgb(236, 200, 0)
+    );
+}
+
+.dice.yellow [class^='face-']::before {
+    background: rgb(236, 200, 0);
+}
+
+.dice.red [class^='face-'] [class^='dot-'],
+.dice.blue [class^='face-'] [class^='dot-'],
+.dice.green [class^='face-'] [class^='dot-'],
+.dice.yellow [class^='face-'] [class^='dot-'] {
+    background: white;
+}
+
+/*
+    Roll Button styles
+*/
+
+.roll {
+    display: inline-block;
+    width: 100px;
+    font-size: 12px;
+}
