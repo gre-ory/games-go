@@ -7,7 +7,7 @@ log:
   level: info
   file: $HOME/_stg/log/games.log
 server:
-  address: :8194
+  address: :8094
   white-list-origins:
     - ''
     - http://localhost:9090
