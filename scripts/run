@@ -34,9 +34,6 @@ SERVER_BIN="server"
 >&2 echo "~> ${BIN_DIR}/${SERVER_BIN} &"
 ${BIN_DIR}/${SERVER_BIN} &
 
-sleep 1
-tail -f $HOME/_own/log/games.log &
-
 child=$!
 >&2 echo "~> wait \"$child\""
 wait "$child"
