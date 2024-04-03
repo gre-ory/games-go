@@ -203,7 +203,7 @@ func (s *cookieServer) newCookie(value string, maxAge int) *http.Cookie {
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false, // TODO: support HTTPS
 		SameSite: http.SameSiteLaxMode,
 	}
 }
