@@ -1,0 +1,13 @@
+
+# create new iprule
+sudo iptables -I INPUT 6 -p tcp -m state --state NEW --dport 8082:8089 -j ACCEPT
+#                      ^ line-number
+
+# list iprules
+sudo iptables -L INPUT --line-numbers
+
+# delete iprule
+ sudo iptables -D INPUT <line-number>
+
+# save iprules
+sudo netfilter-persistent save

@@ -28,12 +28,10 @@ type PlayerStatus int
 
 const (
 	WaitingToJoin PlayerStatus = iota
+	WaitingToJoinOrStart
 	WaitingToStart
 	WaitingToPlay
 	Playing
-	Win
-	Tie
-	Loose
 )
 
 type Player struct {
@@ -100,19 +98,13 @@ func (p *Player) Labels() string {
 	if p.Active() {
 		switch p.Status {
 		case WaitingToJoin:
-			labels = append(labels, "waiting-to-start")
+			labels = append(labels, "waiting-to-join")
 		case WaitingToStart:
 			labels = append(labels, "waiting-to-start")
 		case WaitingToPlay:
 			labels = append(labels, "waiting-to-play")
 		case Playing:
 			labels = append(labels, "playing")
-		case Win:
-			labels = append(labels, "win")
-		case Tie:
-			labels = append(labels, "tie")
-		case Loose:
-			labels = append(labels, "loose")
 		}
 	} else {
 		labels = append(labels, "disconnected")
@@ -120,23 +112,27 @@ func (p *Player) Labels() string {
 	return strings.Join(labels, " ")
 }
 
+func (p *Player) SymbolIcon() string {
+	switch p.Symbol {
+	case PLAYER_ONE_SYMBOL:
+		return "icon-cross"
+	case PLAYER_TWO_SYMBOL:
+		return "icon-circle"
+	}
+	return ""
+}
+
 func (p *Player) YourMessage() template.HTML {
 	if p.Active() {
 		switch p.Status {
 		case WaitingToJoin:
-			return "Wait other player!"
+			return "Wait others!"
 		case WaitingToStart:
 			return "Start?"
 		case WaitingToPlay:
 			return "Wait!"
 		case Playing:
 			return "Play " + p.IconHtml() + "!"
-		case Win:
-			return "You wins!"
-		case Tie:
-			return "Tie!"
-		case Loose:
-			return "You looses!"
 		}
 	} else {
 		return "Disconnected..."
@@ -155,12 +151,6 @@ func (p *Player) Message() template.HTML {
 			return "Waiting..."
 		case Playing:
 			return "Playing " + p.IconHtml() + "..."
-		case Win:
-			return "Wins!"
-		case Tie:
-			return "Tie!"
-		case Loose:
-			return "Looses!"
 		}
 	} else {
 		return "Disconnected..."
@@ -168,30 +158,14 @@ func (p *Player) Message() template.HTML {
 	return ""
 }
 
-func (p *Player) SymbolIcon() string {
-	switch p.Symbol {
-	case PLAYER_ONE_SYMBOL:
-		return "icon-cross"
-	case PLAYER_TWO_SYMBOL:
-		return "icon-circle"
-	}
-	return ""
-}
-
 func (p *Player) StatusIcon() string {
 	switch p.Status {
-	case WaitingToJoin:
-		return "icon-pause"
-	case WaitingToPlay:
+	case WaitingToJoin,
+		WaitingToStart,
+		WaitingToPlay:
 		return "icon-pause"
 	case Playing:
 		return "icon-play"
-	case Win:
-		return "icon-win"
-	case Tie:
-		return "icon-tie"
-	case Loose:
-		return "icon-loose"
 	}
 	return ""
 }

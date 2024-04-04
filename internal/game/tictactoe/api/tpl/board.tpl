@@ -1,5 +1,5 @@
 {{- define "board" }}
-{{- if .game.Started }}
+{{- if or .game.Started .game.Stopped }}
 {{- $playing := .player.Playing }}
 <div id="board" class="{{ .player.Labels }}" hx-swap-oob="outerHTML">
     <div class="board">
@@ -18,7 +18,7 @@
         {{- end }}
     </div>
     <div class="center">
-        {{- if .Stopped }}
+        {{- if .game.Stopped }}
             <button ws-send data-action="create-game">New game</button>
         {{- end }}
         <button ws-send data-action="leave-game">Leave</button>

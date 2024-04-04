@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gre-ory/games-go/internal/util"
+	"github.com/gre-ory/games-go/internal/util/list"
 	"github.com/gre-ory/games-go/internal/util/websocket"
 )
 
@@ -23,14 +24,23 @@ func NewGame(nbRow, nbColumn int) *Game {
 		Id:      NewGameId(),
 		Players: make(map[PlayerId]*Player),
 		Rows:    rows,
-		Round:   -1,
 	}
 	return game
 }
 
+type GameStatus int
+
+const (
+	Joinable GameStatus = iota
+	NotJoinable
+	Started
+	Stopped
+)
+
 type Game struct {
 	Id        GameId
-	Stopped   bool
+	Status    GameStatus
+	WinnerIds []PlayerId
 	Players   map[PlayerId]*Player
 	PlayerIds []PlayerId
 	Round     int
@@ -38,7 +48,11 @@ type Game struct {
 }
 
 func (g *Game) Started() bool {
-	return g.Round >= 0
+	return g.Status == Started
+}
+
+func (g *Game) Stopped() bool {
+	return g.Status == Stopped
 }
 
 func (g *Game) WithPlayer(player *Player) *Game {
@@ -51,6 +65,30 @@ func (g *Game) WithoutPlayer(player *Player) *Game {
 	delete(g.Players, player.Id())
 	player.UnsetGameId()
 	return g
+}
+
+func (g *Game) UpdateStatus() {
+	if !g.CanJoin() {
+		g.Status = NotJoinable
+		for _, player := range g.Players {
+			player.Status = WaitingToStart
+		}
+	} else {
+		g.Status = Joinable
+		if g.CanStart() {
+			for _, player := range g.Players {
+				player.Status = WaitingToJoinOrStart
+			}
+		} else {
+			for _, player := range g.Players {
+				player.Status = WaitingToJoin
+			}
+		}
+	}
+}
+
+func (g *Game) CanJoin() bool {
+	return len(g.Players) < 2
 }
 
 func (g *Game) CanStart() bool {
@@ -69,6 +107,15 @@ func (g *Game) GetCurrentPlayerId() (PlayerId, error) {
 		return "", ErrGameNotStarted
 	}
 	return g.getCurrentPlayerId(), nil
+}
+
+func (g *Game) GetOtherPlayerId(playerId PlayerId) (PlayerId, error) {
+	for id := range g.Players {
+		if id != playerId {
+			return id, nil
+		}
+	}
+	return "", ErrPlayerNotFound
 }
 
 func (g *Game) getCurrentPlayerId() PlayerId {
@@ -105,11 +152,6 @@ func (g *Game) Play(player *Player, x, y int) error {
 		return row.Play(player, x)
 	}
 	return ErrOutOfRowBound
-}
-
-func (g *Game) NextRound() {
-	g.Round++
-	g.SetPlayingPlayer()
 }
 
 func (g *Game) SetPlayingPlayer() {
@@ -182,6 +224,122 @@ func (g *Game) IsTie() bool {
 		return false
 	}
 	return true
+}
+
+func (g *Game) Labels() string {
+	labels := make([]string, 0)
+	labels = append(labels, "game")
+	switch g.Status {
+	case Joinable:
+		labels = append(labels, "joinable")
+	case NotJoinable:
+		labels = append(labels, "not-joinable")
+	case Started:
+		labels = append(labels, "started")
+	case Stopped:
+		labels = append(labels, "stopped")
+	}
+	return strings.Join(labels, " ")
+}
+
+type PlayerResult int
+
+const (
+	PlayerResult_Undefined PlayerResult = iota
+	PlayerResult_Win
+	PlayerResult_Tie
+	PlayerResult_Loose
+)
+
+func (g *Game) PlayerResult(playerId PlayerId) PlayerResult {
+	if g.Status == Stopped {
+		if len(g.WinnerIds) == 0 {
+			return PlayerResult_Tie
+		} else if list.Contains(g.WinnerIds, playerId) {
+			return PlayerResult_Win
+		} else {
+			return PlayerResult_Loose
+		}
+	}
+	return PlayerResult_Undefined
+}
+
+func (g *Game) PlayerLabels(playerId PlayerId) string {
+	if g.Status == Stopped {
+		labels := make([]string, 0)
+		labels = append(labels, "player")
+		switch g.PlayerResult(playerId) {
+		case PlayerResult_Win:
+			labels = append(labels, "win")
+		case PlayerResult_Tie:
+			labels = append(labels, "tie")
+		case PlayerResult_Loose:
+			labels = append(labels, "loose")
+		}
+		return strings.Join(labels, " ")
+	}
+	player, err := g.GetPlayer(playerId)
+	if err != nil {
+		return "error"
+	}
+	return player.Labels()
+}
+
+func (g *Game) YourPlayerMessage(playerId PlayerId) template.HTML {
+	if g.Status == Stopped {
+		switch g.PlayerResult(playerId) {
+		case PlayerResult_Win:
+			return "You wins!"
+		case PlayerResult_Tie:
+			return "Tie!"
+		case PlayerResult_Loose:
+			return "You looses!"
+		}
+		return ""
+	}
+	player, err := g.GetPlayer(playerId)
+	if err != nil {
+		return "Error!"
+	}
+	return player.YourMessage()
+}
+
+func (g *Game) PlayerMessage(playerId PlayerId) template.HTML {
+	if g.Status == Stopped {
+		switch g.PlayerResult(playerId) {
+		case PlayerResult_Win:
+			return "Wins!"
+		case PlayerResult_Tie:
+			return "Tie!"
+		case PlayerResult_Loose:
+			return "Looses!"
+		}
+		return ""
+	}
+	player, err := g.GetPlayer(playerId)
+	if err != nil {
+		return "Error!"
+	}
+	return player.Message()
+}
+
+func (g *Game) PlayerStatusIcon(playerId PlayerId) string {
+	if g.Status == Stopped {
+		switch g.PlayerResult(playerId) {
+		case PlayerResult_Win:
+			return "icon-win"
+		case PlayerResult_Tie:
+			return "icon-tie"
+		case PlayerResult_Loose:
+			return "icon-loose"
+		}
+		return ""
+	}
+	player, err := g.GetPlayer(playerId)
+	if err != nil {
+		return ""
+	}
+	return player.StatusIcon()
 }
 
 // //////////////////////////////////////////////////
