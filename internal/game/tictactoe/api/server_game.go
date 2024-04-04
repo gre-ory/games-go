@@ -123,7 +123,8 @@ func (s *gameServer) broadcastErrorToPlayer(playerId model.PlayerId, err error) 
 
 func (s *gameServer) broadcastSelectGameToPlayer(playerId model.PlayerId) {
 	data := make(websocket.Data)
-	data["games"] = s.service.GetJoinableGames()
+	data["new_games"] = s.service.GetJoinableGames()
+	data["other_games"] = s.service.GetNotJoinableGames()
 	s.hub.BroadcastToPlayer("select-game", playerId, data)
 }
 
@@ -135,14 +136,15 @@ func (s *gameServer) broadcastGameLayoutToPlayer(playerId model.PlayerId, game *
 
 func (s *gameServer) broadcastJoinableGamesToPlayer(playerId model.PlayerId) {
 	data := make(websocket.Data)
-	data["games"] = s.service.GetJoinableGames()
+	data["new_games"] = s.service.GetJoinableGames()
+	data["other_games"] = s.service.GetNotJoinableGames()
 	s.hub.BroadcastToPlayer("select-game", playerId, data)
 }
 
 func (s *gameServer) broadcastJoinableGames() {
-	games := s.service.GetJoinableGames()
 	s.hub.BroadcastToNotPlayingPlayers("select-game", websocket.Data{
-		"games": games,
+		"new_games":   s.service.GetJoinableGames(),
+		"other_games": s.service.GetNotJoinableGames(),
 	})
 }
 

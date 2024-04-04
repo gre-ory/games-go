@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	CookieKey    = "game-tictactoe"
+	CookieKey    = "ttt"
 	CookieMaxAge = 60 * 60 // seconds
 )
 

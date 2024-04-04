@@ -75,58 +75,69 @@
 
         <!-- select game -->
         <div id="content">
-            Welcome OOPP14!
-            <br>
-            Please select game:
             <div class="cols-1">
-                <div class="join-game col-1 item">
-                    <div class="title center">game PIIV</div>
+                <div class="join-game col-1 item game joinable"> 
+                    <div class="title center">game OBGD</div>
                     <div class="content">
                         <div class="left">
-                            <div class="badge user">
-                                <div class="avatar-1 s"></div>
-                                <div class="name">A3S766</div>
+                            <div class="badge user player waiting-to-start">
+                                    <div class="avatar-1 xs"></div>
+                                <div class="name">8OI8DR Chrome</div>
                             </div>
                         </div>
                         <div class="right">
-                            <div class="button" ws-send="" data-action="join-game" data-game="PIIV">
+                            <button ws-send="" data-action="join-game" data-game="OBGD">
                                 Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <div class="cols-1">
+            <div class="new-game col-1 item">
+                <div class="title center">new game</div>
+                <div class="content right">
+                    <button ws-send="" data-action="create-game">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+            <div class="cols-1">
+                <div class="join-game col-1 item game not-joinable"> 
+                    <div class="title center">game NUIP</div>
+                    <div class="content">
+                        <div class="left">
+                            <div class="badge user player symbol-1 waiting-to-start">
+                                    <div class="avatar-1 xs"></div>
+                                <div class="name">VIRRIH</div>
+                            </div>
+                            <div class="badge user player symbol-2 waiting-to-start">
+                                    <div class="avatar-20 xs"></div>
+                                <div class="name">WJ9G1V</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="cols-1">
-                <div class="new-game col-1 item">
-                    <div class="title">new game</div>
-                    <div class="content right">
-                        <div class="button" ws-send="" data-action="create-game">
-                            Create
+                <div class="join-game col-1 item game stopped"> 
+                    <div class="title center">game CPYY</div>
+                    <div class="content">
+                        <div class="left">
+                            <div class="badge user player symbol-1 waiting-to-start">
+                                    <div class="avatar-1 xs"></div>
+                                <div class="name">VIRRIH</div>
+                            </div>
+                            <div class="badge user player symbol-2 waiting-to-start">
+                                    <div class="avatar-20 xs"></div>
+                                <div class="name">WJ9G1V</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div><div id="notifications">
-                <div class="error">
-                    <div class="icon-error"></div>
-                    <div class="message">My error</div>
-                </div>
-                
-                <div class="info">
-                    <div class="icon-info"></div>
-                    <div class="message">My info</div>
-                </div>
-                
-                <div class="warning">
-                    <div class="icon-error"></div>
-                    <div class="message">My warning</div>
-                </div>
-                
-                <div class="info">
-                    <div class="icon-info"></div>
-                    <div class="message">My info My info My info My info My info My info My info My info My info My info My info My info My info</div>
-                </div>
             </div>
-        </div>
+    </div>
 
         <!-- board -->
         <div id="content">

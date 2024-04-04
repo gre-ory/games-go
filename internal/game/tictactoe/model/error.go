@@ -11,6 +11,8 @@ var (
 	ErrMissingPlayerName    = fmt.Errorf("missing player name")
 	ErrMissingPlayers       = fmt.Errorf("missing players")
 	ErrGameNotStarted       = fmt.Errorf("game not started")
+	ErrGameAlreadyStarted   = fmt.Errorf("game already started")
+	ErrGameNotJoinable      = fmt.Errorf("game not joinable")
 	ErrOutOfColumnBound     = fmt.Errorf("out of column bound")
 	ErrOutOfRowBound        = fmt.Errorf("out of row bound")
 	ErrWrongPlayer          = fmt.Errorf("wrong player")

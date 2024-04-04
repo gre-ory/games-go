@@ -3,7 +3,7 @@ package store
 import "github.com/gre-ory/games-go/internal/game/tictactoe/model"
 
 type GameStore interface {
-	ListNotStarted() []*model.Game
+	ListStatus(status model.GameStatus) []*model.Game
 	Set(game *model.Game) error
 	Get(id model.GameId) (*model.Game, error)
 	Delete(id model.GameId) error
@@ -19,14 +19,14 @@ type gameStore struct {
 	games map[model.GameId]*model.Game
 }
 
-func (s *gameStore) ListNotStarted() []*model.Game {
-	notStartedGames := make([]*model.Game, 0, len(s.games))
+func (s *gameStore) ListStatus(status model.GameStatus) []*model.Game {
+	filtered := make([]*model.Game, 0, len(s.games))
 	for _, game := range s.games {
-		if !game.Started() {
-			notStartedGames = append(notStartedGames, game)
+		if game.Status == status {
+			filtered = append(filtered, game)
 		}
 	}
-	return notStartedGames
+	return filtered
 }
 
 func (s *gameStore) Set(game *model.Game) error {

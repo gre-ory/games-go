@@ -10,6 +10,7 @@ import (
 
 type GameService interface {
 	GetJoinableGames() []*model.Game
+	GetNotJoinableGames() []*model.Game
 	GetGame(id model.GameId) (*model.Game, error)
 	NewGame() (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
@@ -41,7 +42,15 @@ func (s *gameService) GetGame(gameId model.GameId) (*model.Game, error) {
 }
 
 func (s *gameService) GetJoinableGames() []*model.Game {
-	return s.gameStore.ListNotStarted()
+	return s.gameStore.ListStatus(model.Joinable)
+}
+
+func (s *gameService) GetNotJoinableGames() []*model.Game {
+	result := make([]*model.Game, 0)
+	result = append(result, s.gameStore.ListStatus(model.NotJoinable)...)
+	result = append(result, s.gameStore.ListStatus(model.Started)...)
+	result = append(result, s.gameStore.ListStatus(model.Stopped)...)
+	return result
 }
 
 func (s *gameService) NewGame() (*model.Game, error) {
@@ -58,24 +67,21 @@ func (s *gameService) JoinGame(id model.GameId, player *model.Player) (*model.Ga
 }
 
 func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	if game.Stopped {
+	switch game.Status {
+	case model.NotJoinable:
+		return nil, model.ErrGameNotJoinable
+	case model.Started:
+		return nil, model.ErrGameAlreadyStarted
+	case model.Stopped:
 		return nil, model.ErrGameStopped
+	default:
 	}
+
 	if _, err := game.GetPlayer(player.Id()); err == nil {
 		return game, nil
 	}
 	game = game.WithPlayer(player)
-
-	if game.CanStart() {
-		for _, player := range game.Players {
-			player.Status = model.WaitingToStart
-		}
-	} else {
-		for _, player := range game.Players {
-			player.Status = model.WaitingToJoin
-		}
-	}
-
+	game.UpdateStatus()
 	return s.storeGame(game)
 }
 
@@ -88,8 +94,12 @@ func (s *gameService) StartGame(player *model.Player) (*model.Game, error) {
 }
 
 func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
-	if game.Stopped {
+	switch game.Status {
+	case model.Started:
+		return nil, model.ErrGameAlreadyStarted
+	case model.Stopped:
 		return nil, model.ErrGameStopped
+	default:
 	}
 	if !game.CanStart() {
 		return nil, model.ErrMissingPlayers
@@ -102,7 +112,9 @@ func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
 	game.Players[ids[0]].WithSymbol(model.PLAYER_ONE_SYMBOL)
 	game.Players[ids[1]].WithSymbol(model.PLAYER_TWO_SYMBOL)
 
-	game.NextRound()
+	game.Status = model.Started
+	game.Round = 1
+	game.SetPlayingPlayer()
 
 	return s.storeGame(game)
 }
@@ -116,11 +128,12 @@ func (s *gameService) PlayGame(player *model.Player, x, y int) (*model.Game, err
 }
 
 func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int) (*model.Game, error) {
-	if !game.Started() {
+	switch game.Status {
+	case model.Joinable, model.NotJoinable:
 		return nil, model.ErrGameNotStarted
-	}
-	if game.Stopped {
+	case model.Stopped:
 		return nil, model.ErrGameStopped
+	default:
 	}
 
 	currentPlayer, err := game.GetCurrentPlayer()
@@ -141,7 +154,8 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 	} else if game.IsTie() {
 		s.stopGame(game, "")
 	} else {
-		game.NextRound()
+		game.Round++
+		game.SetPlayingPlayer()
 	}
 
 	return s.storeGame(game)
@@ -156,54 +170,45 @@ func (s *gameService) LeaveGame(player *model.Player) (*model.Game, error) {
 }
 
 func (s *gameService) leaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	if game.Stopped {
-		player.UnsetGameId()
-		return game, nil
-	}
-	if !game.Started() {
+	switch game.Status {
+	case model.Joinable, model.NotJoinable:
 		game = game.WithoutPlayer(player)
+		player.Status = model.WaitingToJoin
 		if len(game.Players) == 0 {
 			return nil, s.deleteGame(game)
 		} else {
-
-			if game.CanStart() {
-				for _, player := range game.Players {
-					player.Status = model.WaitingToStart
-				}
-			} else {
-				for _, player := range game.Players {
-					player.Status = model.WaitingToJoin
-				}
-			}
-
+			game.UpdateStatus()
 			return s.storeGame(game)
 		}
+	case model.Started:
+		winnerId, err := game.GetOtherPlayerId(player.Id())
+		if err != nil {
+			return nil, err
+		}
+		player.Status = model.WaitingToJoin
+		player.UnsetGameId()
+		return s.stopGame(game, winnerId)
+	case model.Stopped:
+		player.Status = model.WaitingToJoin
+		player.UnsetGameId()
+		return game, nil
 	}
-	winnerId := game.PlayerIds[0]
-	if game.PlayerIds[0] == player.Id() {
-		winnerId = game.PlayerIds[1]
-	}
-	return s.stopGame(game, winnerId)
+	return game, nil
 }
 
 func (s *gameService) stopGame(game *model.Game, winnerId model.PlayerId) (*model.Game, error) {
-	if game.Stopped {
-		return nil, model.ErrGameStopped
-	}
-	if !game.Started() {
+	switch game.Status {
+	case model.Joinable, model.NotJoinable:
 		return nil, model.ErrGameNotStarted
+	case model.Stopped:
+		return nil, model.ErrGameStopped
+	default:
 	}
 
-	for id, player := range game.Players {
-		if winnerId == "" {
-			player.Status = model.Tie
-		} else if id == winnerId {
-			player.Status = model.Win
-		} else {
-			player.Status = model.Loose
-		}
+	game.Status = model.Stopped
+	if winnerId != "" {
+		game.WinnerIds = []model.PlayerId{winnerId}
 	}
-	game.Stopped = true
 
 	return s.storeGame(game)
 }
@@ -228,8 +233,10 @@ func (s *gameService) DeleteGame(id model.GameId, playerId model.PlayerId) error
 }
 
 func (s *gameService) deleteGame(game *model.Game) error {
-	if game.Started() && !game.Stopped {
+	switch game.Status {
+	case model.Started:
 		return model.ErrGameNotStopped
+	default:
 	}
 	return s.gameStore.Delete(game.Id)
 }

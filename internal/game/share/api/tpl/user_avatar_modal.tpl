@@ -9,12 +9,12 @@
 		{{- if eq $avatar $current_avatar }}
 		<div class="col-1 center select on">
 			<div
-				class="avatar-{{ $avatar }} xl"
+				class="avatar-{{ $avatar }} m"
 			 	_="on click trigger closeModal"></div>
 		{{- else }}
 		<div class="col-1 center select">
 			<div 
-				class="avatar-{{ $avatar }} xl" 
+				class="avatar-{{ $avatar }} m" 
 				hx-put="/htmx/user?user_avatar={{ $avatar }}" 
 				hx-target="#user" 
 				hx-swap="outerHTML"

@@ -44,6 +44,9 @@
         <!-- content -->  
         <div id="content"></div>
         
+        <!-- notifications --> 
+        <div id="notifications"></div>
+        
     </div>
 </body>
 </html>

@@ -146,6 +146,17 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToNotPlayingPlayersFn(name string,
 	h.broadcast <- NewTemplate[PlayerT](
 		name,
 		func(player PlayerT) (bool, any) {
+			h.logger.Info(
+				fmt.Sprintf(
+					"[broadcast] %s -> player %s -> can-join: %t, active: %t, id: %t, game: %t",
+					name,
+					player.Id(),
+					player.CanJoin(),
+					player.Active(),
+					player.HasId(),
+					player.HasGameId(),
+				),
+			)
 			if player.CanJoin() {
 				return acceptFn(player)
 			}

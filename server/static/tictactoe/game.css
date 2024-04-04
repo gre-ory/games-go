@@ -106,7 +106,7 @@ body {
     display: inline;
     position: absolute;
     top: 0;
-    right: 0;
+    right: calc(50% - ( var(--width) / 2 ));
     height: var(--header-height);
     padding: 0 15px;
     display: inline-flex;
@@ -225,6 +225,37 @@ body {
     background-color: var(--color-blue);
     font-weight: bold;
     color: white;
+}
+
+.join-game.joinable,
+.new-game {
+    --item-title-background-color: var(--color-blue);
+    --badge-background-color: var(--color-light-yellow);
+    --badge-color: black;
+}
+
+.join-game.not-joinable,
+.join-game.started {
+    --item-title-background-color: var(--color-light-blue);
+    --badge-background-color: var(--color-light-blue);
+}
+
+.join-game.stopped {
+    --item-title-background-color: var(--color-light-gray);
+    --badge-background-color: var(--color-light-gray);
+}
+
+.join-game.stopped .user.win {
+    --badge-background-color: var(--color-green);
+}
+
+.join-game.stopped .user.loose {
+    --badge-background-color: var(--color-red);
+}
+
+.join-game .user .name {
+    margin-left: 5px;
+    font-size: small;
 }
 
 #players .player {
