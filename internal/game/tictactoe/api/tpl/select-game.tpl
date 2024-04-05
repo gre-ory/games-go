@@ -1,10 +1,11 @@
 {{- define "select-game" }}
+{{- $lang := .lang }}
     <div id="content" hx-swap-oob="innerHTML">
         {{- range .new_games }}
         {{- $game := . }}
             <div class="cols-1">
                 <div class="join-game col-1 item {{ .Labels }}"> 
-                    <div class="title center">game {{ .Id }}</div>
+                    <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
                         {{- range $id, $player := .Players }}
@@ -18,7 +19,7 @@
                         </div>
                         <div class="right">
                             <button ws-send data-action="join-game" data-game="{{ .Id }}">
-                                Join
+                                {{ $lang.Loc "JoinAction" }}
                             </button>
                         </div>
                     </div>
@@ -27,10 +28,10 @@
         {{- end }}
         <div class="cols-1">
             <div class="new-game col-1 item">
-                <div class="title center">new game</div>
+                <div class="title center">{{ $lang.Loc "NewGame" }}</div>
                 <div class="content right">
                     <button ws-send data-action="create-game">
-                        Create
+                        {{ $lang.Loc "CreateAction" }}
                     </button>
                 </div>
             </div>
@@ -39,7 +40,7 @@
         {{- $game := . }}
             <div class="cols-1">
                 <div class="join-game col-1 item {{ .Labels }}"> 
-                    <div class="title center">game {{ .Id }}</div>
+                    <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
                         {{- range $id, $player := .Players }}

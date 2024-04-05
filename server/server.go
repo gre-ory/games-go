@@ -72,7 +72,7 @@ func main() {
 	// service
 	//
 
-	gameService := service.NewGameService(gameStore, playerStore)
+	gameService := service.NewGameService(logger, gameStore, playerStore)
 
 	//
 	// api

@@ -196,6 +196,13 @@ body {
 	align-items: center;
 }
 
+/* ------------------------- click ------------------------- */
+
+.click:hover,
+.click:active {
+	cursor: pointer;
+}
+
 /* ------------------------- select ------------------------- */
 
 body {

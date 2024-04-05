@@ -28,8 +28,6 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 	//
 
 	s.Render(w, "page-home", map[string]any{
-		// "title":  "Tic Tac Toe",
-		"title":  "TTT",
 		"cookie": cookie,
 	})
 }

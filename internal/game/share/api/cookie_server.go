@@ -79,6 +79,7 @@ func (s *cookieServer) RegisterRoutes(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPut, "/htmx/user", s.htmx_set_user)
 	router.HandlerFunc(http.MethodGet, "/htmx/user-avatar-modal", s.htmx_user_avatar_modal)
 	router.HandlerFunc(http.MethodGet, "/htmx/user-name-modal", s.htmx_user_name_modal)
+	router.HandlerFunc(http.MethodGet, "/htmx/user-language-modal", s.htmx_user_language_modal)
 }
 
 // //////////////////////////////////////////////////

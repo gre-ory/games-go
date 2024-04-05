@@ -17,5 +17,5 @@ func extractUserAvatar(r *http.Request) model.UserAvatar {
 }
 
 func extractUserLanguage(r *http.Request) model.UserLanguage {
-	return model.UserLanguage(util.ExtractParameter(r, "user_language"))
+	return model.ToLanguage(util.ExtractParameter(r, "user_language"))
 }
