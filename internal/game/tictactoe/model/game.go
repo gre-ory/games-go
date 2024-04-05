@@ -309,7 +309,7 @@ func (g *Game) PlayerMessage(localizer loc.Localizer, playerId PlayerId) templat
 	if g.Status == Stopped {
 		switch g.PlayerResult(playerId) {
 		case PlayerResult_Win:
-			return localizer.Loc("PlayerWins")
+			return localizer.Loc("PlayerWin")
 		case PlayerResult_Tie:
 			return localizer.Loc("PlayerTie")
 		case PlayerResult_Loose:
