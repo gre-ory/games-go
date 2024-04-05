@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gre-ory/games-go/internal/util"
+	"github.com/gre-ory/games-go/internal/util/loc"
 	"github.com/gre-ory/games-go/internal/util/websocket"
 )
 
@@ -15,12 +16,13 @@ func NewPlayerId() PlayerId {
 	return PlayerId(util.GeneratePlayerId())
 }
 
-func NewPlayer(player websocket.Player[PlayerId, GameId], avatar int, name string) *Player {
+func NewPlayer(player websocket.Player[PlayerId, GameId], avatar int, name string, language string) *Player {
 	return &Player{
-		Player: player,
-		Avatar: avatar,
-		Name:   name,
-		Status: WaitingToJoin,
+		Player:   player,
+		Avatar:   avatar,
+		Name:     name,
+		Language: language,
+		Status:   WaitingToJoin,
 	}
 }
 
@@ -36,10 +38,11 @@ const (
 
 type Player struct {
 	websocket.Player[PlayerId, GameId]
-	Avatar int
-	Name   string
-	Symbol rune
-	Status PlayerStatus
+	Avatar   int
+	Name     string
+	Language string
+	Symbol   rune
+	Status   PlayerStatus
 }
 
 func (p *Player) WithSymbol(symbol rune) *Player {
@@ -48,7 +51,7 @@ func (p *Player) WithSymbol(symbol rune) *Player {
 }
 
 func (p *Player) CanJoin() bool {
-	return p.Player.CanJoin() && p.Status == WaitingToJoin && p.Name != ""
+	return p.Player.CanJoin() && (p.Status == WaitingToJoin)
 }
 
 func (p *Player) Playing() bool {
@@ -122,38 +125,38 @@ func (p *Player) SymbolIcon() string {
 	return ""
 }
 
-func (p *Player) YourMessage() template.HTML {
+func (p *Player) YourMessage(localizer loc.Localizer) template.HTML {
 	if p.Active() {
 		switch p.Status {
 		case WaitingToJoin:
-			return "Wait others!"
+			return localizer.Loc("YouWaitingToJoin")
 		case WaitingToStart:
-			return "Start?"
+			return localizer.Loc("YouWaitingToStart")
 		case WaitingToPlay:
-			return "Wait!"
+			return localizer.Loc("YouWaitingToPlay")
 		case Playing:
-			return "Play " + p.IconHtml() + "!"
+			return localizer.Loc("YouPlaying", p.IconHtml())
 		}
 	} else {
-		return "Disconnected..."
+		return localizer.Loc("YouDisconnected")
 	}
 	return ""
 }
 
-func (p *Player) Message() template.HTML {
+func (p *Player) Message(localizer loc.Localizer) template.HTML {
 	if p.Active() {
 		switch p.Status {
 		case WaitingToJoin:
-			return "Waiting..."
+			return localizer.Loc("PlayerWaitingToJoin")
 		case WaitingToStart:
-			return "Start?"
+			return localizer.Loc("PlayerWaitingToStart")
 		case WaitingToPlay:
-			return "Waiting..."
+			return localizer.Loc("PlayerWaitingToPlay")
 		case Playing:
-			return "Playing " + p.IconHtml() + "..."
+			return localizer.Loc("PlayerPlaying", p.IconHtml())
 		}
 	} else {
-		return "Disconnected..."
+		return localizer.Loc("PlayerDisconnected")
 	}
 	return ""
 }

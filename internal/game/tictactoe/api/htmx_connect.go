@@ -32,6 +32,7 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		if playerName == "" {
 			playerName = string(cookie.Id)
 		}
+		playerLanguage := string(cookie.Language)
 
 		player, err = s.hub.GetPlayer(playerId)
 		if err == nil {
@@ -44,7 +45,7 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 			s.logger.Info(fmt.Sprintf("[api] player %s not found >>> create a new one", playerId))
 			// wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, s.hub.UnregisterPlayer)
 			wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, nil)
-			player = model.NewPlayer(wsPlayer, playerAvatar, playerName)
+			player = model.NewPlayer(wsPlayer, playerAvatar, playerName, playerLanguage)
 			s.hub.RegisterPlayer(player)
 		}
 		s.logger.Info(fmt.Sprintf("[api] player %s >>> connect", playerId))

@@ -1,10 +1,11 @@
 {{define "page-home"}}
+{{- $lang := .lang }}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .title }}</title>
+    <title>{{ $lang.Loc "Title" "TTT" }}</title>
     <link rel="icon" type="image/png" href="/static/share/logo.png" />
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -38,7 +39,7 @@
 	
 	    <!-- header -->        
 		<div id="header">
-            <div class="title">{{ .title }}</div>
+            <div class="title">{{ $lang.Loc "Title" "TTT" }}</div>
         </div>
         
         <!-- content -->  
@@ -46,6 +47,10 @@
         
         <!-- notifications --> 
         <div id="notifications"></div>
+
+        [{{ $lang.Loc "GameTitle" "ABCD" }}]<br/>
+        [{{ $lang.Loc "GameTitle" "ABCD" "222" "333" }}]<br/>
+        [{{ $lang.Loc "GameTitle" }}]<br/>
         
     </div>
 </body>

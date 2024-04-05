@@ -1,11 +1,15 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/gre-ory/games-go/internal/game/tictactoe/model"
 	"github.com/gre-ory/games-go/internal/game/tictactoe/store"
 	"github.com/gre-ory/games-go/internal/util/dict"
 	"github.com/gre-ory/games-go/internal/util/list"
+	"github.com/gre-ory/games-go/internal/util/loc"
 	"github.com/gre-ory/games-go/internal/util/websocket"
+	"go.uber.org/zap"
 )
 
 type GameService interface {
@@ -21,14 +25,16 @@ type GameService interface {
 	WrapData(data websocket.Data, player *model.Player) (bool, any)
 }
 
-func NewGameService(gameStore store.GameStore, playerStore store.PlayerStore) GameService {
+func NewGameService(logger *zap.Logger, gameStore store.GameStore, playerStore store.PlayerStore) GameService {
 	return &gameService{
+		logger:      logger,
 		gameStore:   gameStore,
 		playerStore: playerStore,
 	}
 }
 
 type gameService struct {
+	logger      *zap.Logger
 	gameStore   store.GameStore
 	playerStore store.PlayerStore
 }
@@ -245,6 +251,9 @@ func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool,
 	if player == nil {
 		return true, data
 	}
+	localizer := loc.NewLocalizer(s.logger, player.Language)
+	s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.Id(), player.Language, localizer.Loc("GameTitle", "ABC")))
+	data.With("lang", localizer)
 	if !player.HasGameId() {
 		return true, data
 	}

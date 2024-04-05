@@ -6,6 +6,7 @@ import (
 
 	"github.com/gre-ory/games-go/internal/util"
 	"github.com/gre-ory/games-go/internal/util/list"
+	"github.com/gre-ory/games-go/internal/util/loc"
 	"github.com/gre-ory/games-go/internal/util/websocket"
 )
 
@@ -285,42 +286,42 @@ func (g *Game) PlayerLabels(playerId PlayerId) string {
 	return player.Labels()
 }
 
-func (g *Game) YourPlayerMessage(playerId PlayerId) template.HTML {
+func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
 	if g.Status == Stopped {
 		switch g.PlayerResult(playerId) {
 		case PlayerResult_Win:
-			return "You wins!"
+			return localizer.Loc("YouWin")
 		case PlayerResult_Tie:
-			return "Tie!"
+			return localizer.Loc("YouTie")
 		case PlayerResult_Loose:
-			return "You looses!"
+			return localizer.Loc("YouLoose")
 		}
 		return ""
 	}
 	player, err := g.GetPlayer(playerId)
 	if err != nil {
-		return "Error!"
+		return localizer.Loc("Error", err.Error())
 	}
-	return player.YourMessage()
+	return player.YourMessage(localizer)
 }
 
-func (g *Game) PlayerMessage(playerId PlayerId) template.HTML {
+func (g *Game) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
 	if g.Status == Stopped {
 		switch g.PlayerResult(playerId) {
 		case PlayerResult_Win:
-			return "Wins!"
+			return localizer.Loc("PlayerWins")
 		case PlayerResult_Tie:
-			return "Tie!"
+			return localizer.Loc("PlayerTie")
 		case PlayerResult_Loose:
-			return "Looses!"
+			return localizer.Loc("PlayerLoose")
 		}
 		return ""
 	}
 	player, err := g.GetPlayer(playerId)
 	if err != nil {
-		return "Error!"
+		return localizer.Loc("Error", err.Error())
 	}
-	return player.Message()
+	return player.Message(localizer)
 }
 
 func (g *Game) PlayerStatusIcon(playerId PlayerId) string {

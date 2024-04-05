@@ -15,7 +15,7 @@ func NewCookie() *Cookie {
 	return &Cookie{
 		Id:       NewUserId(),
 		Avatar:   1,
-		Language: Fr_UserLanguage,
+		Language: UserLanguage_Fr,
 	}
 }
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
@@ -70,6 +71,8 @@ func (s *gameServer) onCookie(cookie *share_model.Cookie) {
 	}
 	player.Avatar = int(cookie.Avatar)
 	player.Name = string(cookie.Name)
+	s.logger.Info(fmt.Sprintf("[on-cookie] language: %s >>> %s", player.Language, cookie.Language))
+	player.Language = string(cookie.Language)
 	s.broadcastPlayer(player)
 }
 
@@ -92,6 +95,7 @@ func (s *gameServer) broadcastPlayer(player *model.Player) {
 		game, err := s.service.GetGame(player.GameId())
 		if err == nil {
 			s.broadcastPlayers(game)
+			s.broadcastBoard(game)
 		}
 	}
 }
