@@ -12,8 +12,10 @@ type Cookie struct {
 }
 
 func NewCookie() *Cookie {
+	id := NewUserId()
 	return &Cookie{
-		Id:       NewUserId(),
+		Id:       id,
+		Name:     UserName(id),
 		Avatar:   1,
 		Language: UserLanguage_Fr,
 	}

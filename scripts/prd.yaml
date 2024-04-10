@@ -9,9 +9,4 @@ log:
 server:
   address: :9020
   white-list-origins:
-    - ''
-    - http://localhost:9090
-    - http://localhost:8090
-    - http://158.178.206.68:8090
-    - http://158.178.206.68:8091
-    - http://158.178.206.68:8092
+    - http://158.178.206.68:9020

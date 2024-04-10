@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $lang.Loc "Title" "TTT" }}</title>
-    <link rel="icon" type="image/png" href="/static/share/logo.png" />
+    <link rel="icon" type="image/png" href="/static/share/icons/dice-5.svg" />
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
@@ -35,7 +35,7 @@
 	</div>
 	
 	<!-- websocket -->
-    <div id="main" hx-ext="ws" ws-connect="/ttt/htmx/connect">
+    <div id="main" hx-ext="ws" ws-connect="/ttt/htmx/connect" hx-trigger="load">
 	
 	    <!-- header -->        
 		<div id="header">
@@ -43,14 +43,14 @@
         </div>
         
         <!-- content -->  
-        <div id="content"></div>
+        <div id="content">
+            <div class="center">
+                <div class="loading-dot"><div></div><div></div><div></div><div></div></div>
+            </div>
+        </div>
         
         <!-- notifications --> 
         <div id="notifications"></div>
-
-        [{{ $lang.Loc "GameTitle" "ABCD" }}]<br/>
-        [{{ $lang.Loc "GameTitle" "ABCD" "222" "333" }}]<br/>
-        [{{ $lang.Loc "GameTitle" }}]<br/>
         
     </div>
 </body>

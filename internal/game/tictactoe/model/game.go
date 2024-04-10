@@ -3,6 +3,7 @@ package model
 import (
 	"html/template"
 	"strings"
+	"time"
 
 	"github.com/gre-ory/games-go/internal/util"
 	"github.com/gre-ory/games-go/internal/util/list"
@@ -22,9 +23,10 @@ func NewGame(nbRow, nbColumn int) *Game {
 		rows[y] = NewRow(nbColumn)
 	}
 	game := &Game{
-		Id:      NewGameId(),
-		Players: make(map[PlayerId]*Player),
-		Rows:    rows,
+		Id:        NewGameId(),
+		CreatedAt: time.Now(),
+		Players:   make(map[PlayerId]*Player),
+		Rows:      rows,
 	}
 	return game
 }
@@ -40,6 +42,7 @@ const (
 
 type Game struct {
 	Id        GameId
+	CreatedAt time.Time
 	Status    GameStatus
 	WinnerIds []PlayerId
 	Players   map[PlayerId]*Player
@@ -94,6 +97,10 @@ func (g *Game) CanJoin() bool {
 
 func (g *Game) CanStart() bool {
 	return len(g.Players) == 2
+}
+
+func (g *Game) HasPlayer(playerId PlayerId) bool {
+	return list.Contains(g.PlayerIds, playerId)
 }
 
 func (g *Game) GetPlayer(id PlayerId) (*Player, error) {

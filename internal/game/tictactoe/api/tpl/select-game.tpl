@@ -1,6 +1,23 @@
 {{- define "select-game" }}
 {{- $lang := .lang }}
     <div id="content" hx-swap-oob="innerHTML">
+        {{- if .has_waiting_players }}
+        <div class="cols-1">
+            <div class="new-game col-1 item">
+                <div class="title center">{{ $lang.Loc "Lobby" }}</div>
+                <div class="content left">
+                    {{- range $id, $player := .waiting_players }}
+                    <div class="badge user player waiting">
+                        {{- if ne .Avatar 0 }}
+                            <div class="avatar-{{ .Avatar }} xs"></div>
+                        {{- end }}
+                        <div class="name truncate">{{ or .Name .Id }}</div>
+                    </div>
+                    {{- end }}
+                </div>
+            </div>
+        </div>
+        {{- end }}
         {{- range .new_games }}
         {{- $game := . }}
             <div class="cols-1">
@@ -13,7 +30,7 @@
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}
-                                <div class="name">{{ or .Name .Id }}</div>
+                                <div class="name truncate">{{ or .Name .Id }}</div>
                             </div>
                         {{- end }}
                         </div>
@@ -48,7 +65,7 @@
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}
-                                <div class="name">{{ or .Name .Id }}</div>
+                                <div class="name truncate">{{ or .Name .Id }}</div>
                             </div>
                         {{- end }}
                         </div>

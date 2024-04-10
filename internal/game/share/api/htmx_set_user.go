@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gre-ory/games-go/internal/game/share/model"
@@ -23,13 +24,22 @@ func (s *cookieServer) htmx_set_user(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		name := extractUserName(r)
-		if name != "" {
-			err = name.Validate()
-			if err != nil {
-				break
+		if hasUserName(r) {
+			name := extractUserName(r)
+			if name != "" {
+				err = name.Validate()
+				if err != nil {
+					break
+				}
+				s.logger.Info(fmt.Sprintf("[DEBUG] name: %s <<< %s", cookie.Name, name))
+				cookie.Name = name
+			} else {
+				// note: empty name >>> delete name >>> default name = id
+				s.logger.Info(fmt.Sprintf("[DEBUG] name: %s <<< %s (default)", cookie.Name, model.UserName(cookie.Id)))
+				cookie.Name = model.UserName(cookie.Id)
 			}
-			cookie.Name = name
+		} else {
+			s.logger.Info(fmt.Sprintf("[DEBUG] name: %s (untouched)", cookie.Name))
 		}
 
 		avatar := extractUserAvatar(r)

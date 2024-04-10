@@ -118,7 +118,7 @@ func (s *cookieServer) GetCookie(r *http.Request) (*model.Cookie, error) {
 		s.logger.Info(fmt.Sprintf("unable to decode: %s", err.Error()), zap.Binary("cookie-encoded", cookieEncoded))
 		return nil, err
 	}
-	s.logger.Info("get cookie", zap.Any("value", value), zap.Any("cookie", cookie))
+	// s.logger.Info("get cookie", zap.Any("value", value), zap.Any("cookie", cookie))
 
 	// sanitize
 	value.Sanitize()

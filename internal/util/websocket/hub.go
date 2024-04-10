@@ -24,8 +24,9 @@ type Hub[IdT comparable, GameIdT comparable, PlayerT Player[IdT, GameIdT]] inter
 	BroadcastToGamePlayers(name string, gameId GameIdT, data Data)
 	BroadcastToPlayerFn(name string, id IdT, acceptFn func(player PlayerT) (bool, any))
 	BroadcastToPlayer(name string, id IdT, data Data)
+	WrapPlayerData(data Data, player PlayerT) (bool, any)
 	GetAllPlayers() []PlayerT
-	GetNotPlayingPlayers(gameId GameIdT) []PlayerT
+	GetNotPlayingPlayers() []PlayerT
 	GetGamePlayers(gameId GameIdT) []PlayerT
 }
 
@@ -52,7 +53,7 @@ type hub[IdT comparable, GameIdT comparable, PlayerT Player[IdT, GameIdT]] struc
 
 	logger   *zap.Logger
 	players  map[IdT]PlayerT
-	mutex    sync.Mutex
+	mutex    sync.RWMutex
 	wrapData func(data Data, player PlayerT) (bool, any)
 }
 
@@ -76,10 +77,14 @@ func (h *hub[IdT, GameIdT, PlayerT]) run() {
 // get
 
 func (h *hub[IdT, GameIdT, PlayerT]) GetPlayer(id IdT) (PlayerT, error) {
+	h.logger.Info("[api] GetPlayer.Lock...")
+	h.mutex.RLock()
+	defer func() {
+		h.mutex.RUnlock()
+		h.logger.Info("[api] ...GetPlayer.Unlock")
+	}()
 
-	h.mutex.Lock()
 	player, found := h.players[id]
-	h.mutex.Unlock()
 	if found {
 		h.logger.Info(fmt.Sprintf("[get-player] player %v", id))
 		return player, nil
@@ -96,10 +101,15 @@ func (h *hub[IdT, GameIdT, PlayerT]) RegisterPlayer(player PlayerT) {
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onRegisterPlayer(player PlayerT) {
-	h.logger.Info(fmt.Sprintf("[register] (+) player %s", player.Id()))
+	h.logger.Info("[api] onRegisterPlayer.Lock...")
 	h.mutex.Lock()
+	defer func() {
+		h.mutex.Unlock()
+		h.logger.Info("[api] ...onRegisterPlayer.Unlock")
+	}()
+
+	h.logger.Info(fmt.Sprintf("[register] (+) player %s", player.Id()))
 	h.players[player.Id()] = player
-	h.mutex.Unlock()
 }
 
 // //////////////////////////////////////////////////
@@ -110,20 +120,30 @@ func (h *hub[IdT, GameIdT, PlayerT]) UnregisterPlayer(id IdT) {
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onUnregisterPlayer(id IdT) {
-	h.logger.Info(fmt.Sprintf("[unregister] (-) player %s", id))
+	h.logger.Info("[api] onUnregisterPlayer.Lock...")
 	h.mutex.Lock()
+	defer func() {
+		h.mutex.Unlock()
+		h.logger.Info("[api] ...onUnregisterPlayer.Unlock")
+	}()
+
+	h.logger.Info(fmt.Sprintf("[unregister] (-) player %s", id))
 	if player, ok := h.players[id]; ok {
 		delete(h.players, id)
 		player.Close()
 	}
-	h.mutex.Unlock()
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) UpdatePlayer(player PlayerT) {
-	h.logger.Info(fmt.Sprintf("[update] (~) player %s", player.Id()))
+	h.logger.Info("[api] UpdatePlayer.Lock...")
 	h.mutex.Lock()
+	defer func() {
+		h.mutex.Unlock()
+		h.logger.Info("[api] ...UpdatePlayer.Unlock")
+	}()
+
+	h.logger.Info(fmt.Sprintf("[update] (~) player %s", player.Id()))
 	h.players[player.Id()] = player
-	h.mutex.Unlock()
 }
 
 // //////////////////////////////////////////////////
@@ -138,7 +158,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToAllFn(name string, acceptFn func
 
 func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToAll(name string, data Data) {
 	h.BroadcastToAllFn(name, func(player PlayerT) (bool, any) {
-		return h.wrapPlayerData(data, player)
+		return h.WrapPlayerData(data, player)
 	})
 }
 
@@ -167,7 +187,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToNotPlayingPlayersFn(name string,
 
 func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToNotPlayingPlayers(name string, data Data) {
 	h.BroadcastToNotPlayingPlayersFn(name, func(player PlayerT) (bool, any) {
-		return h.wrapPlayerData(data, player)
+		return h.WrapPlayerData(data, player)
 	})
 }
 
@@ -185,7 +205,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToGamePlayersFn(name string, gameI
 
 func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToGamePlayers(name string, gameId GameIdT, data Data) {
 	h.BroadcastToGamePlayersFn(name, gameId, func(player PlayerT) (bool, any) {
-		return h.wrapPlayerData(data, player)
+		return h.WrapPlayerData(data, player)
 	})
 }
 
@@ -205,11 +225,11 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToPlayerFn(name string, id IdT, ac
 
 func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToPlayer(name string, id IdT, data Data) {
 	h.BroadcastToPlayerFn(name, id, func(player PlayerT) (bool, any) {
-		return h.wrapPlayerData(data, player)
+		return h.WrapPlayerData(data, player)
 	})
 }
 
-func (h *hub[IdT, GameIdT, PlayerT]) wrapPlayerData(data Data, player PlayerT) (bool, any) {
+func (h *hub[IdT, GameIdT, PlayerT]) WrapPlayerData(data Data, player PlayerT) (bool, any) {
 	data.With("player", player)
 	if player.HasGameId() {
 		data.With("game_id", player.GameId())
@@ -221,32 +241,44 @@ func (h *hub[IdT, GameIdT, PlayerT]) wrapPlayerData(data Data, player PlayerT) (
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onBroadcast(tpl Template[PlayerT]) {
-	h.logger.Info(fmt.Sprintf("[broadcast] template: %s", tpl.GetName()))
-	h.mutex.Lock()
+	h.logger.Info("[api] onBroadcast.Lock...")
+	h.mutex.RLock()
+	defer func() {
+		h.mutex.RUnlock()
+		h.logger.Info("[api] ...onBroadcast.Unlock")
+	}()
+
+	count := 0
 	for _, player := range h.players {
 		if ok, data := tpl.Accept(player); ok {
 			buf := &bytes.Buffer{}
 			h.Render(buf, tpl.GetName(), data)
-			// h.logger.Info(fmt.Sprintf("[broadcast]  > player %s", player.Id()), zap.String("message", string(buf.Bytes())))
 			player.Send(buf.Bytes())
+			count++
 		}
-		// else {
-		// 	h.logger.Info(fmt.Sprintf("[broadcast]  X player %s", player.Id()))
-		// }
 	}
-	h.mutex.Unlock()
+	if count > 0 {
+		h.logger.Info(fmt.Sprintf("[broadcast] template: %s >>> %d player(s)", tpl.GetName(), count))
+	} else {
+		h.logger.Info(fmt.Sprintf("[broadcast] template: %s >>> SKIP", tpl.GetName()))
+	}
 }
 
 // //////////////////////////////////////////////////
 // helpers
 
 func (h *hub[IdT, GameIdT, PlayerT]) GetAllPlayers() []PlayerT {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
+	h.logger.Info("[api] GetAllPlayers.Lock...")
+	h.mutex.RLock()
+	defer func() {
+		h.mutex.RUnlock()
+		h.logger.Info("[api] ...GetAllPlayers.Unlock")
+	}()
+
 	return dict.ConvertToList(h.players, dict.Value)
 }
 
-func (h *hub[IdT, GameIdT, PlayerT]) GetNotPlayingPlayers(gameId GameIdT) []PlayerT {
+func (h *hub[IdT, GameIdT, PlayerT]) GetNotPlayingPlayers() []PlayerT {
 	return list.Filter(h.GetAllPlayers(), func(player PlayerT) bool {
 		return player.CanJoin()
 	})

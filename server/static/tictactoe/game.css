@@ -106,6 +106,7 @@ body {
     display: inline;
     position: absolute;
     top: 0;
+    /* right: calc(50% - ( var(--width) / 2 ) - 10px); */
     right: calc(50% - ( var(--width) / 2 ));
     height: var(--header-height);
     padding: 0 15px;
@@ -114,8 +115,9 @@ body {
 }
 
 #user .name {
-    margin-left: 5px;
-    max-width: calc(var(--width) * 0.3);
+    margin-left: 10px;
+    margin-right: 10px;
+    max-width: calc(var(--width) * 0.25);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -126,14 +128,14 @@ body {
     display: none;
 }
 
-#user [class^='language-'] {
+/* #user [class^='language-'] {
     margin-left: 10px;
     text-transform: uppercase;
     font-size: small;
     background: rgba(0,0,0,0.2);
     padding: 5px;
     border-radius: 5px;
-}
+} */
 
 #ws-status {
     display: none;
@@ -264,6 +266,7 @@ body {
 .join-game .user .name {
     margin-left: 5px;
     font-size: small;
+    max-width: calc(var(--width)/3);
 }
 
 #players .player {
@@ -548,13 +551,6 @@ body {
     background-color: var(--color-player-2);
     cursor: pointer;
 } */
-
-/* ------------------------- loading ------------------------- */
-
-.loading {
-    margin: auto;
-    color: var(--color-dark);
-}
 
 /* ------------------------- websocket status ------------------------- */
 

@@ -16,6 +16,12 @@ func ExtractPathParameter(ctx context.Context, name string) string {
 	return params.ByName(name)
 }
 
+func HasParameter(r *http.Request, name string) bool {
+	r.ParseForm()
+	_, found := r.Form[name]
+	return found
+}
+
 func ExtractParameter(r *http.Request, name string) string {
 	return r.FormValue(name)
 }
