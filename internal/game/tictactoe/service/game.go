@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/gre-ory/games-go/internal/game/tictactoe/model"
 	"github.com/gre-ory/games-go/internal/game/tictactoe/store"
@@ -14,7 +15,7 @@ import (
 
 type GameService interface {
 	GetJoinableGames() []*model.Game
-	GetNotJoinableGames() []*model.Game
+	GetNotJoinableGames(playerId model.PlayerId) []*model.Game
 	GetGame(id model.GameId) (*model.Game, error)
 	NewGame() (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
@@ -48,15 +49,35 @@ func (s *gameService) GetGame(gameId model.GameId) (*model.Game, error) {
 }
 
 func (s *gameService) GetJoinableGames() []*model.Game {
-	return s.gameStore.ListStatus(model.Joinable)
+	games := s.gameStore.ListStatus(model.Joinable)
+	return s.sortGames(games)
 }
 
-func (s *gameService) GetNotJoinableGames() []*model.Game {
-	result := make([]*model.Game, 0)
-	result = append(result, s.gameStore.ListStatus(model.NotJoinable)...)
-	result = append(result, s.gameStore.ListStatus(model.Started)...)
-	result = append(result, s.gameStore.ListStatus(model.Stopped)...)
-	return result
+func (s *gameService) GetNotJoinableGames(playerId model.PlayerId) []*model.Game {
+	games := make([]*model.Game, 0)
+	games = append(games, s.gameStore.ListStatus(model.NotJoinable)...)
+	games = append(games, s.gameStore.ListStatus(model.Started)...)
+	games = append(games, s.gameStore.ListStatus(model.Stopped)...)
+	games = s.filterGamesByPlayer(games, playerId)
+	return s.sortGames(games)
+}
+
+func (s *gameService) sortGames(games []*model.Game) []*model.Game {
+	sort.Slice(games, func(i, j int) bool {
+		// sort by reverse creation time
+		return games[i].CreatedAt.After(games[j].CreatedAt)
+	})
+	return games
+}
+
+func (s *gameService) filterGamesByPlayer(games []*model.Game, playerId model.PlayerId) []*model.Game {
+	filtered := make([]*model.Game, 0, len(games))
+	for _, game := range games {
+		if game.HasPlayer(playerId) {
+			filtered = append(filtered, game)
+		}
+	}
+	return filtered
 }
 
 func (s *gameService) NewGame() (*model.Game, error) {

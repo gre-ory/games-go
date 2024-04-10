@@ -10,7 +10,7 @@
 		<div class="col-1 center select on">
 			<div
 				class="language-{{ $language }} m"
-			 	_="on click trigger closeModal">{{ $language }}</div>
+			 	_="on click trigger closeModal"></div>
 		{{- else }}
 		<div class="col-1 center select">
 			<div 
@@ -18,7 +18,7 @@
 				hx-put="/htmx/user?user_language={{ $language }}" 
 				hx-target="#user" 
 				hx-swap="outerHTML"
-				_="on click trigger closeModal">{{ $language }}</div>
+				_="on click trigger closeModal"></div>
 		{{- end }}
 		</div>
 		{{- end }}

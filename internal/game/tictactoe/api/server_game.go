@@ -126,9 +126,7 @@ func (s *gameServer) broadcastErrorToPlayer(playerId model.PlayerId, err error) 
 }
 
 func (s *gameServer) broadcastSelectGameToPlayer(playerId model.PlayerId) {
-	data := make(websocket.Data)
-	data["new_games"] = s.service.GetJoinableGames()
-	data["other_games"] = s.service.GetNotJoinableGames()
+	data := s.getJoinableGamesData(playerId)
 	s.hub.BroadcastToPlayer("select-game", playerId, data)
 }
 
@@ -139,17 +137,40 @@ func (s *gameServer) broadcastGameLayoutToPlayer(playerId model.PlayerId, game *
 }
 
 func (s *gameServer) broadcastJoinableGamesToPlayer(playerId model.PlayerId) {
-	data := make(websocket.Data)
-	data["new_games"] = s.service.GetJoinableGames()
-	data["other_games"] = s.service.GetNotJoinableGames()
+	data := s.getJoinableGamesData(playerId)
 	s.hub.BroadcastToPlayer("select-game", playerId, data)
 }
 
 func (s *gameServer) broadcastJoinableGames() {
-	s.hub.BroadcastToNotPlayingPlayers("select-game", websocket.Data{
-		"new_games":   s.service.GetJoinableGames(),
-		"other_games": s.service.GetNotJoinableGames(),
+	s.hub.BroadcastToNotPlayingPlayersFn("select-game", func(player *model.Player) (bool, any) {
+		data := s.getJoinableGamesData(player.Id())
+		return s.hub.WrapPlayerData(data, player)
 	})
+}
+
+func (s *gameServer) getJoinableGamesData(playerId model.PlayerId) websocket.Data {
+	waitingPlayers := s.getWaitingPlayers(playerId)
+	data := make(websocket.Data)
+	data["new_games"] = s.service.GetJoinableGames()
+	data["other_games"] = s.service.GetNotJoinableGames(playerId)
+	data["has_waiting_players"] = len(waitingPlayers) > 0
+	data["waiting_players"] = waitingPlayers
+	return data
+}
+
+func (s *gameServer) getWaitingPlayers(playerId model.PlayerId) []*model.Player {
+	players := s.hub.GetNotPlayingPlayers()
+	waitingPlayers := make([]*model.Player, 0, len(players))
+	for _, player := range players {
+		if player == nil {
+			continue
+		}
+		if player.Id() == playerId {
+			continue
+		}
+		waitingPlayers = append(waitingPlayers, player)
+	}
+	return waitingPlayers
 }
 
 func (s *gameServer) broadcastGame(game *model.Game) {

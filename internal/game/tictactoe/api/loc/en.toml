@@ -1,8 +1,7 @@
-Title = "TTT"
+Title = "Tic Tac Toe"
+Lobby = "Lobby"
 NewGame = "New Game"
 GameTitle = "Game {{.arg1}}"
-WaitOtherMessage = "Wait others!"
-PlayMessage = "Play!"
 CreateAction = "Create"
 JoinAction = "Join"
 StartAction = "Start"
@@ -26,7 +25,6 @@ YouWaitingToPlay = "Wait!"
 YouPlaying = "Play {{.arg1}}!"
 YouDisconnected = "Disconnected..."
 
-Hello = "Hello"
 [Example]
 description = "The number of unread emails I have"
 one = "I have {{.PluralCount}} unread email."
