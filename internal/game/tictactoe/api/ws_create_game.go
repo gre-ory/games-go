@@ -14,7 +14,7 @@ import (
 func (s *gameServer) ws_create_game(player *model.Player, message JsonMessage) error {
 	s.logger.Info("[ws] create_game", zap.Any("message", message))
 
-	playerId := player.Id()
+	playerId := player.GetId()
 	playerName := player.Name
 	if playerName == "" {
 		playerName = fmt.Sprintf("Player %s", playerId)

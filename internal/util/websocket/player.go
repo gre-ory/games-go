@@ -13,10 +13,10 @@ import (
 
 type Player[IdT comparable, GameIdT comparable] interface {
 	HasId() bool
-	Id() IdT
+	GetId() IdT
 
 	HasGameId() bool
-	GameId() GameIdT
+	GetGameId() GameIdT
 	SetGameId(gameId GameIdT)
 	UnsetGameId()
 	CanJoin() bool
@@ -60,7 +60,7 @@ func NewPlayer[IdT comparable, GameIdT comparable](
 	onClose func(id IdT),
 ) Player[IdT, GameIdT] {
 	return &player[IdT, GameIdT]{
-		id:        id,
+		Id:        id,
 		logger:    logger,
 		onMessage: onMessage,
 		onUpdate:  onUpdate,
@@ -70,7 +70,7 @@ func NewPlayer[IdT comparable, GameIdT comparable](
 
 type player[IdT comparable, GameIdT comparable] struct {
 	sync.Mutex
-	id         IdT
+	Id         IdT
 	gameId     GameIdT
 	logger     *zap.Logger
 	active     bool
@@ -84,11 +84,11 @@ type player[IdT comparable, GameIdT comparable] struct {
 
 func (p *player[IdT, GameIdT]) HasId() bool {
 	var empty IdT
-	return p.id != empty
+	return p.Id != empty
 }
 
-func (p *player[IdT, GameIdT]) Id() IdT {
-	return p.id
+func (p *player[IdT, GameIdT]) GetId() IdT {
+	return p.Id
 }
 
 func (p *player[IdT, GameIdT]) HasGameId() bool {
@@ -96,7 +96,7 @@ func (p *player[IdT, GameIdT]) HasGameId() bool {
 	return p.gameId != empty
 }
 
-func (p *player[IdT, GameIdT]) GameId() GameIdT {
+func (p *player[IdT, GameIdT]) GetGameId() GameIdT {
 	return p.gameId
 }
 
@@ -126,15 +126,15 @@ func (p *player[IdT, GameIdT]) ConnectSocket(w http.ResponseWriter, r *http.Requ
 }
 
 func (p *player[IdT, GameIdT]) ReadSocket() {
-	p.logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.Id))
 	p.Activate()
 	defer func() {
-		p.logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED", p.id))
+		p.logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED", p.Id))
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
-				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC → ERROR", p.id), zap.Error(err))
+				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC → ERROR", p.Id), zap.Error(err))
 			} else {
-				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.id), zap.Any("panic", r))
+				p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.Id), zap.Any("panic", r))
 			}
 		}
 		p.Deactivate()
@@ -155,19 +155,19 @@ func (p *player[IdT, GameIdT]) ReadSocket() {
 			}
 			break
 		}
-		p.logger.Info(fmt.Sprintf("[ws] player %v ← %s", p.id, message))
+		p.logger.Info(fmt.Sprintf("[ws] player %v ← %s", p.Id, message))
 		if p.onMessage != nil {
-			p.onMessage(p.id, message)
+			p.onMessage(p.Id, message)
 		}
 	}
 }
 
 func (p *player[IdT, GameIdT]) WriteSocket() {
-	p.logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.Id))
 	defer func() {
-		p.logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED", p.id))
+		p.logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED", p.Id))
 		if r := recover(); r != nil {
-			p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.id), zap.Any("panic", r))
+			p.logger.Info(fmt.Sprintf("[ws] player %v → PANIC", p.Id), zap.Any("panic", r))
 		}
 		p.Deactivate()
 		p.Close()
@@ -178,7 +178,7 @@ func (p *player[IdT, GameIdT]) WriteSocket() {
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
-				p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSE message", p.id))
+				p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSE message", p.Id))
 				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -187,7 +187,7 @@ func (p *player[IdT, GameIdT]) WriteSocket() {
 			if err != nil {
 				return
 			}
-			p.logger.Info(fmt.Sprintf("[ws] player %v → %s", p.id, message))
+			p.logger.Info(fmt.Sprintf("[ws] player %v → %s", p.Id, message))
 			w.Write(message)
 
 			if err := w.Close(); err != nil {
@@ -223,7 +223,7 @@ func (p *player[IdT, GameIdT]) Open(conn *ws.Conn) {
 	p.conn = conn
 	p.send = make(chan []byte, 256)
 	p.pingTicker = time.NewTicker(pingPeriod)
-	p.logger.Info(fmt.Sprintf("[ws] player %v → OPEN", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → OPEN", p.Id))
 }
 
 func (p *player[IdT, GameIdT]) Active() bool {
@@ -240,9 +240,9 @@ func (p *player[IdT, GameIdT]) Activate() {
 	if !p.active {
 		p.active = true
 		if p.onUpdate != nil {
-			p.onUpdate(p.id)
+			p.onUpdate(p.Id)
 		}
-		p.logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.id))
+		p.logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.Id))
 	}
 }
 
@@ -257,21 +257,21 @@ func (p *player[IdT, GameIdT]) Close() {
 
 func (p *player[IdT, GameIdT]) close() {
 	if p.onClose != nil {
-		p.onClose(p.id)
+		p.onClose(p.Id)
 	}
 
 	p.pingTicker.Stop()
 	p.pingTicker = nil
 
-	p.logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.Id))
 	close(p.send)
 	p.send = nil
 
-	p.logger.Info(fmt.Sprintf("[ws] player %v → close connection", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → close connection", p.Id))
 	p.conn.Close()
 	p.conn = nil
 
-	p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSED", p.id))
+	p.logger.Info(fmt.Sprintf("[ws] player %v → CLOSED", p.Id))
 }
 
 func (p *player[IdT, GameIdT]) Deactivate() {
@@ -281,8 +281,8 @@ func (p *player[IdT, GameIdT]) Deactivate() {
 	if p.active {
 		p.active = false
 		if p.onUpdate != nil {
-			p.onUpdate(p.id)
+			p.onUpdate(p.Id)
 		}
-		p.logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.id))
+		p.logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.Id))
 	}
 }

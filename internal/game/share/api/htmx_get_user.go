@@ -23,7 +23,11 @@ func (s *cookieServer) htmx_get_user(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		s.SetCookie(w, cookie)
+		err = s.SetCookie(w, cookie)
+		if err != nil {
+			break
+		}
+
 		s.hxServer.Render(w, "user", cookie.Data())
 		return
 	}

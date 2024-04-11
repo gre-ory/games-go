@@ -3,7 +3,7 @@
 <div id="players" hx-swap-oob="outerHTML">
     <div class="players cols-2">
     {{- $game := .game }}
-    {{- $current_id := .player.Id }}
+    {{- $current_id := .player.GetId }}
     {{- range $id, $player := .game.Players }}
         {{- if eq $id $current_id }}
             <div class="{{ $game.PlayerLabels $id }} current col-1 item">

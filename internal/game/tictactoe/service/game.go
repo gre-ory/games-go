@@ -104,7 +104,7 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 	default:
 	}
 
-	if _, err := game.GetPlayer(player.Id()); err == nil {
+	if _, err := game.GetPlayer(player.GetId()); err == nil {
 		return game, nil
 	}
 	game = game.WithPlayer(player)
@@ -113,7 +113,7 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 }
 
 func (s *gameService) StartGame(player *model.Player) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
 }
 
 func (s *gameService) PlayGame(player *model.Player, x, y int) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 	if err != nil {
 		return nil, err
 	}
-	if player.Id() != currentPlayer.Id() {
+	if player.GetId() != currentPlayer.GetId() {
 		return nil, model.ErrWrongPlayer
 	}
 
@@ -189,7 +189,7 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 }
 
 func (s *gameService) LeaveGame(player *model.Player) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (s *gameService) leaveGame(game *model.Game, player *model.Player) (*model.
 			return s.storeGame(game)
 		}
 	case model.Started:
-		winnerId, err := game.GetOtherPlayerId(player.Id())
+		winnerId, err := game.GetOtherPlayerId(player.GetId())
 		if err != nil {
 			return nil, err
 		}
@@ -273,12 +273,12 @@ func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool,
 		return true, data
 	}
 	localizer := loc.NewLocalizer(s.logger, player.Language)
-	s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.Id(), player.Language, localizer.Loc("GameTitle", "ABC")))
+	s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.GetId(), player.Language, localizer.Loc("GameTitle", "ABC")))
 	data.With("lang", localizer)
 	if !player.HasGameId() {
 		return true, data
 	}
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return false, nil
 	}

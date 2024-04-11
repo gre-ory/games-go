@@ -8,4 +8,5 @@ var (
 	ErrMissingUserAvatar   = fmt.Errorf("missing user avatar")
 	ErrInvalidUserAvatar   = fmt.Errorf("invalid user avatar")
 	ErrUnsupportedLanguage = fmt.Errorf("unsupported language")
+	ErrMissingGameId       = fmt.Errorf("missing game id")
 )

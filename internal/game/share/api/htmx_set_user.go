@@ -60,9 +60,13 @@ func (s *cookieServer) htmx_set_user(w http.ResponseWriter, r *http.Request) {
 			cookie.Language = language
 		}
 
-		s.onCookie(cookie)
+		err = s.SetCookie(w, cookie)
+		if err != nil {
+			break
+		}
 
-		s.SetCookie(w, cookie)
+		s.OnCookie(cookie)
+
 		s.hxServer.Render(w, "user", cookie.Data())
 		return
 	}

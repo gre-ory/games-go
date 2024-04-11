@@ -25,17 +25,18 @@ type GameServer interface {
 	util.Server
 }
 
-func NewGameServer(logger *zap.Logger, service service.GameService, cookieSecret string) GameServer {
+func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, service service.GameService) GameServer {
 	hxServer := util.NewHxServer(logger, tpl)
 
 	server := &gameServer{
-		HxServer: hxServer,
-		logger:   logger,
-		service:  service,
-		hub:      websocket.NewHub[model.PlayerId, model.GameId, *model.Player](logger, service.WrapData, hxServer),
+		HxServer:     hxServer,
+		CookieServer: cookieServer,
+		logger:       logger,
+		service:      service,
+		hub:          websocket.NewHub[model.PlayerId, model.GameId, *model.Player](logger, service.WrapData, hxServer),
 	}
 
-	server.CookieServer = NewCookieServer(logger, cookieSecret, server.onCookie)
+	cookieServer.RegisterOnCookie(server.onCookie)
 
 	return server
 }
@@ -52,10 +53,7 @@ type gameServer struct {
 // register
 
 func (s *gameServer) RegisterRoutes(router *httprouter.Router) {
-	s.CookieServer.RegisterRoutes(router)
-
 	router.HandlerFunc(http.MethodGet, "/ttt", s.page_home)
-
 	router.HandlerFunc(http.MethodGet, "/ttt/htmx/connect", s.htmx_connect)
 }
 
@@ -63,6 +61,8 @@ func (s *gameServer) RegisterRoutes(router *httprouter.Router) {
 // on cookie
 
 func (s *gameServer) onCookie(cookie *share_model.Cookie) {
+	s.logger.Info("[on-cookie] ttt <<< ", zap.Any("cookie", cookie))
+
 	playerId := model.PlayerId(cookie.Id)
 	player, err := s.hub.GetPlayer(playerId)
 	if err != nil {
@@ -74,6 +74,12 @@ func (s *gameServer) onCookie(cookie *share_model.Cookie) {
 	s.logger.Info(fmt.Sprintf("[on-cookie] language: %s >>> %s", player.Language, cookie.Language))
 	player.Language = string(cookie.Language)
 	s.broadcastPlayer(player)
+	s.broadcastUser(cookie)
+}
+
+func (s *gameServer) broadcastUser(cookie *share_model.Cookie) {
+	playerId := model.PlayerId(cookie.Id)
+	s.hub.BroadcastToPlayerRender(playerId, nil, s.CookieServer.RenderUser(cookie))
 }
 
 // //////////////////////////////////////////////////
@@ -92,7 +98,7 @@ func (s *gameServer) broadcastPlayer(player *model.Player) {
 	s.hub.UpdatePlayer(player)
 	s.broadcastJoinableGames()
 	if player.HasGameId() {
-		game, err := s.service.GetGame(player.GameId())
+		game, err := s.service.GetGame(player.GetGameId())
 		if err == nil {
 			s.broadcastPlayers(game)
 			s.broadcastBoard(game)
@@ -143,7 +149,7 @@ func (s *gameServer) broadcastJoinableGamesToPlayer(playerId model.PlayerId) {
 
 func (s *gameServer) broadcastJoinableGames() {
 	s.hub.BroadcastToNotPlayingPlayersFn("select-game", func(player *model.Player) (bool, any) {
-		data := s.getJoinableGamesData(player.Id())
+		data := s.getJoinableGamesData(player.GetId())
 		return s.hub.WrapPlayerData(data, player)
 	})
 }
@@ -165,7 +171,7 @@ func (s *gameServer) getWaitingPlayers(playerId model.PlayerId) []*model.Player 
 		if player == nil {
 			continue
 		}
-		if player.Id() == playerId {
+		if player.GetId() == playerId {
 			continue
 		}
 		waitingPlayers = append(waitingPlayers, player)

@@ -56,14 +56,14 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		player.ConnectSocket(w, r)
 		s.logger.Info("[api] ...ConnectSocket")
 
-		playerId = player.Id()
+		playerId = player.GetId()
 
-		if player.GameId() == "" {
+		if player.GetGameId() == "" {
 			s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcast games", playerId))
 			s.broadcastJoinableGamesToPlayer(playerId)
 			return
 		}
-		gameId := player.GameId()
+		gameId := player.GetGameId()
 
 		s.logger.Info("[api] GetGame...")
 		game, err = s.service.GetGame(gameId)
