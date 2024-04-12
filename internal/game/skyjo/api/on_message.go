@@ -43,11 +43,13 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 			s.logger.Info(fmt.Sprintf("[WS] ------------------------- %s :: %s ( %s ) -------------------------", playerId, jsonMessage.Action, time.Since(now)))
 		}()
 
+		gameId := model.GameId(jsonMessage.GameId)
+
 		switch jsonMessage.Action {
 		case "create-game":
 			err = s.HandleCreateGame(player)
 		case "join-game":
-			err = s.HandleJoinGame(player)
+			err = s.HandleJoinGame(player, gameId)
 		case "start-game":
 			err = s.HandleStartGame(player)
 		case "play":

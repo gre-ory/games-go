@@ -31,11 +31,9 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		playerAvatar := int(cookie.Avatar)
 		playerName := string(cookie.Name)
 		playerLanguage := string(cookie.Language)
-		s.logger.Info(fmt.Sprintf("[api] cookie %s - %s >>> connecting...", playerId, playerName), zap.Any("cookie", cookie))
+		s.logger.Info(fmt.Sprintf("[api] cookie %s - %s >>> getting player...", playerId, playerName), zap.Any("cookie", cookie))
 
-		s.logger.Info("[api] s.hub.GetPlayer...")
 		player, err = s.hub.GetPlayer(playerId)
-		s.logger.Info("[api] ...s.hub.GetPlayer")
 		if err == nil {
 			s.logger.Info(fmt.Sprintf("[api] player %s already exists", playerId), zap.Any("player", player))
 		} else {
@@ -45,36 +43,32 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 			}
 			s.logger.Info(fmt.Sprintf("[api] player %s not found >>> create a new one", playerId))
 			// wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, s.hub.UnregisterPlayer)
-			s.logger.Info("[api] NewPlayer...")
 			wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, nil)
 			player = model.NewPlayer(wsPlayer, playerAvatar, playerName, playerLanguage)
-			s.logger.Info("[api] RegisterPlayer...")
 			s.hub.RegisterPlayer(player)
 		}
-		s.logger.Info(fmt.Sprintf("[api] player %s >>> connect", playerId))
-		s.logger.Info("[api] ConnectSocket...")
+
+		s.logger.Info(fmt.Sprintf("[api] player %s >>> connecting...", playerId))
 		player.ConnectSocket(w, r)
-		s.logger.Info("[api] ...ConnectSocket")
 
 		playerId = player.GetId()
 
 		if player.GetGameId() == "" {
-			s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcast games", playerId))
+			s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting games...", playerId))
 			s.broadcastJoinableGamesToPlayer(playerId)
 			return
 		}
 		gameId := player.GetGameId()
 
-		s.logger.Info("[api] GetGame...")
 		game, err = s.service.GetGame(gameId)
 		if err != nil {
 			break
 		}
 
-		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcast game layout", playerId))
+		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting game layout...", playerId))
 		s.broadcastGameLayoutToPlayer(playerId, game)
 
-		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcast game", playerId))
+		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting game...", playerId))
 		s.broadcastGame(game)
 
 		return

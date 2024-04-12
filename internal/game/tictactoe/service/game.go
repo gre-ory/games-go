@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/gre-ory/games-go/internal/game/tictactoe/model"
@@ -18,6 +17,7 @@ type GameService interface {
 	GetNotJoinableGames(playerId model.PlayerId) []*model.Game
 	GetGame(id model.GameId) (*model.Game, error)
 	NewGame() (*model.Game, error)
+	CreateGame(player *model.Player) (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
 	StartGame(player *model.Player) (*model.Game, error)
 	PlayGame(player *model.Player, x, y int) (*model.Game, error)
@@ -83,6 +83,14 @@ func (s *gameService) filterGamesByPlayer(games []*model.Game, playerId model.Pl
 func (s *gameService) NewGame() (*model.Game, error) {
 	game := model.NewGame(3, 3)
 	return s.storeGame(game)
+}
+
+func (s *gameService) CreateGame(player *model.Player) (*model.Game, error) {
+	game, err := s.NewGame()
+	if err != nil {
+		return nil, err
+	}
+	return s.joinGame(game, player)
 }
 
 func (s *gameService) JoinGame(id model.GameId, player *model.Player) (*model.Game, error) {
@@ -272,8 +280,8 @@ func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool,
 	if player == nil {
 		return true, data
 	}
-	localizer := loc.NewLocalizer(s.logger, player.Language)
-	s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.GetId(), player.Language, localizer.Loc("GameTitle", "ABC")))
+	localizer := loc.NewLocalizer(model.AppId, player.Language, s.logger)
+	// s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.GetId(), player.Language, localizer.Loc("GameTitle", "ABC")))
 	data.With("lang", localizer)
 	if !player.HasGameId() {
 		return true, data

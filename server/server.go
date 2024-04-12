@@ -197,17 +197,26 @@ func NewLogger(config LogConfig) *zap.Logger {
 // //////////////////////////////////////////////////
 // request logging
 
+const (
+	DebugStaticResource = false
+	DebugApiCall        = true
+)
+
 func WithRequestLogging(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/static/") {
-				logger.Info(fmt.Sprintf("[%s] %s %s", r.Method, r.URL.Path, r.UserAgent()))
+				if DebugStaticResource {
+					logger.Info(fmt.Sprintf("[%s] %s %s", r.Method, r.URL.Path, r.UserAgent()))
+				}
 			} else {
-				now := time.Now()
-				logger.Info(fmt.Sprintf("[%s] ------------------------- %s ------------------------- %s", r.Method, r.URL.Path, r.UserAgent()))
-				defer func() {
-					logger.Info(fmt.Sprintf("[%s] ------------------------- %s ( %s ) ------------------------- %s", r.Method, r.URL.Path, time.Since(now), r.UserAgent()))
-				}()
+				if DebugApiCall {
+					now := time.Now()
+					logger.Info(fmt.Sprintf("[%s] ------------------------- %s ------------------------- %s", r.Method, r.URL.Path, r.UserAgent()))
+					defer func() {
+						logger.Info(fmt.Sprintf("[%s] ------------------------- %s ( %s ) ------------------------- %s", r.Method, r.URL.Path, time.Since(now), r.UserAgent()))
+					}()
+				}
 			}
 			next.ServeHTTP(w, r)
 		})

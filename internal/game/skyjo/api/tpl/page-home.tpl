@@ -24,8 +24,7 @@
 <body>
 
     <!-- user -->
-    <!-- -->
-    <div id="user" hx-get="/htmx/user" hx-target="this" hx-swap="outerHTML" hx-trigger="load"></div>
+    <div id="user" class="user" hx-get="/htmx/user" hx-target="this" hx-swap="outerHTML" hx-trigger="load"></div>
     
     <!-- websocket status -->
     <div id="ws-status" class="cloud-on">

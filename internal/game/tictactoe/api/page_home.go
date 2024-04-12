@@ -9,6 +9,7 @@ import (
 	"github.com/gre-ory/games-go/internal/util/loc"
 
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	"github.com/gre-ory/games-go/internal/game/tictactoe/model"
 )
 
 func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,7 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 		// render
 		//
 
-		localizer := loc.NewLocalizer(s.logger, string(cookie.Language))
+		localizer := loc.NewLocalizer(model.AppId, string(cookie.Language), s.logger)
 		s.Render(w, "page-home", map[string]any{
 			"cookie": cookie,
 			"lang":   localizer,

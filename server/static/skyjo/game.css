@@ -137,10 +137,6 @@ body {
     border-radius: 5px;
 } */
 
-#ws-status {
-    display: none;
-}
-
 #main {
     width: var(--width);
     margin: 0 auto;
@@ -555,9 +551,18 @@ body {
 /* ------------------------- websocket status ------------------------- */
 
 #ws-status {
-    float:right;
-	width: 24px;
-	height: 24px;
+    float: left;
+    width: 24px;
+    height: 24px;
+    margin-top: 5px;
+    margin-left: 5px;
+    color: white;
+    position: absolute;
+    bottom: 0;
+    /* right: 0; */
+    right: calc(50% - ( var(--width) / 2 ));
+    padding: 10px;
+    background: rgba(255,255,255,0.4);
 }
 
 #ws-status #cloud-on,
@@ -569,16 +574,20 @@ body {
 
 #ws-status.cloud-on #cloud-on {
     display: inline-block;
+    fill: var(--color-green);
 }
 
 #ws-status.cloud-connecting #cloud-connecting {
     display: inline-block;
+    fill: var(--color-yellow);
 }
 
 #ws-status.cloud-error #cloud-error {
     display: inline-block;
+    fill: var(--color-red);
 }
 
 #ws-status.cloud-off #cloud-off {
     display: inline-block;
+    fill: var(--color-red);
 }

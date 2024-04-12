@@ -23,4 +23,5 @@ var (
 	ErrAlreadyPlayOnCell    = fmt.Errorf("already played on cell")
 	ErrMissingAction        = fmt.Errorf("missing action")
 	ErrUnknownAction        = fmt.Errorf("unknown action")
+	ErrPlayerAlreadyActive  = fmt.Errorf("player already active")
 )

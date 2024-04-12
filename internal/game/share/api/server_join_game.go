@@ -7,34 +7,38 @@ import (
 // ////////////////////////////////////////////////
 // join game
 
-type JoinGameServer[PlayerT any] interface {
-	HandleJoinGame(player PlayerT) error
+type JoinGameServer[PlayerT any, GameIdT comparable] interface {
+	HandleJoinGame(player PlayerT, gameId GameIdT) error
 }
 
-type JoinGameService[PlayerT any, GameT any] interface {
-	JoinGame(player PlayerT) (GameT, error)
+type JoinGameService[GameIdT comparable, PlayerT any, GameT any] interface {
+	JoinGame(gameId GameIdT, player PlayerT) (GameT, error)
 }
 
 type OnJoinGame[PlayerT any, GameT any] func(player PlayerT, game GameT)
 
-func NewJoinGameApi[PlayerT any, GameT any](logger *zap.Logger, service JoinGameService[PlayerT, GameT], onJoinGame OnJoinGame[PlayerT, GameT]) JoinGameServer[PlayerT] {
-	return &joinGameServer[PlayerT, GameT]{
+func NewJoinGameServer[PlayerT any, GameIdT comparable, GameT any](
+	logger *zap.Logger,
+	service JoinGameService[GameIdT, PlayerT, GameT],
+	onJoinGame OnJoinGame[PlayerT, GameT],
+) JoinGameServer[PlayerT, GameIdT] {
+	return &joinGameServer[PlayerT, GameIdT, GameT]{
 		logger:     logger,
 		service:    service,
 		onJoinGame: onJoinGame,
 	}
 }
 
-type joinGameServer[PlayerT any, GameT any] struct {
+type joinGameServer[PlayerT any, GameIdT comparable, GameT any] struct {
 	logger     *zap.Logger
-	service    JoinGameService[PlayerT, GameT]
+	service    JoinGameService[GameIdT, PlayerT, GameT]
 	onJoinGame OnJoinGame[PlayerT, GameT]
 }
 
-func (s *joinGameServer[PlayerT, GameT]) HandleJoinGame(player PlayerT) error {
+func (s *joinGameServer[PlayerT, GameIdT, GameT]) HandleJoinGame(player PlayerT, gameId GameIdT) error {
 	s.logger.Info("[ws] join_game")
 
-	game, err := s.service.JoinGame(player)
+	game, err := s.service.JoinGame(gameId, player)
 	if err != nil {
 		return err
 	}

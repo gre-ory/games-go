@@ -11,6 +11,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	DebugLock    = false
+	DebugPing    = false
+	DebugMessage = false
+)
+
 type Hub[IdT comparable, GameIdT comparable, PlayerT Player[IdT, GameIdT]] interface {
 	GetPlayer(id IdT) (PlayerT, error)
 	RegisterPlayer(player PlayerT)
@@ -81,11 +87,15 @@ func (h *hub[IdT, GameIdT, PlayerT]) run() {
 // get
 
 func (h *hub[IdT, GameIdT, PlayerT]) GetPlayer(id IdT) (PlayerT, error) {
-	h.logger.Info("[api] GetPlayer.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] GetPlayer.RLock...")
+	}
 	h.mutex.RLock()
 	defer func() {
 		h.mutex.RUnlock()
-		h.logger.Info("[api] ...GetPlayer.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...GetPlayer.RUnlock")
+		}
 	}()
 
 	player, found := h.players[id]
@@ -105,11 +115,15 @@ func (h *hub[IdT, GameIdT, PlayerT]) RegisterPlayer(player PlayerT) {
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onRegisterPlayer(player PlayerT) {
-	h.logger.Info("[api] onRegisterPlayer.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] onRegisterPlayer.Lock...")
+	}
 	h.mutex.Lock()
 	defer func() {
 		h.mutex.Unlock()
-		h.logger.Info("[api] ...onRegisterPlayer.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...onRegisterPlayer.Unlock")
+		}
 	}()
 
 	h.logger.Info(fmt.Sprintf("[register] (+) player %s", player.GetId()))
@@ -124,26 +138,35 @@ func (h *hub[IdT, GameIdT, PlayerT]) UnregisterPlayer(id IdT) {
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onUnregisterPlayer(id IdT) {
-	h.logger.Info("[api] onUnregisterPlayer.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] onUnregisterPlayer.Lock...")
+	}
 	h.mutex.Lock()
 	defer func() {
 		h.mutex.Unlock()
-		h.logger.Info("[api] ...onUnregisterPlayer.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...onUnregisterPlayer.Unlock")
+		}
 	}()
 
 	h.logger.Info(fmt.Sprintf("[unregister] (-) player %s", id))
-	if player, ok := h.players[id]; ok {
+	// if player, ok := h.players[id]; ok {
+	if _, ok := h.players[id]; ok {
 		delete(h.players, id)
-		player.Close()
+		// player.Close(h.logger)
 	}
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) UpdatePlayer(player PlayerT) {
-	h.logger.Info("[api] UpdatePlayer.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] UpdatePlayer.Lock...")
+	}
 	h.mutex.Lock()
 	defer func() {
 		h.mutex.Unlock()
-		h.logger.Info("[api] ...UpdatePlayer.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...UpdatePlayer.Unlock")
+		}
 	}()
 
 	h.logger.Info(fmt.Sprintf("[update] (~) player %s", player.GetId()))
@@ -181,16 +204,16 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToNotPlayingPlayersFn(name string,
 
 func (h *hub[IdT, GameIdT, PlayerT]) AcceptNotPlayingPlayersFn(acceptFn func(player PlayerT) (bool, any)) func(player PlayerT) (bool, any) {
 	return func(player PlayerT) (bool, any) {
-		h.logger.Info(
-			fmt.Sprintf(
-				"[broadcast] player %s -> can-join: %t, active: %t, id: %t, game: %t",
-				player.GetId(),
-				player.CanJoin(),
-				player.Active(),
-				player.HasId(),
-				player.HasGameId(),
-			),
-		)
+		// h.logger.Info(
+		// 	fmt.Sprintf(
+		// 		"[broadcast] player %s -> can-join: %t, active: %t, id: %t, game: %t",
+		// 		player.GetId(),
+		// 		player.CanJoin(),
+		// 		player.IsActive(),
+		// 		player.HasId(),
+		// 		player.HasGameId(),
+		// 	),
+		// )
 		if player.CanJoin() {
 			if acceptFn != nil {
 				return acceptFn(player)
@@ -303,11 +326,15 @@ func (h *hub[IdT, GameIdT, PlayerT]) WrapPlayerData(data Data, player PlayerT) (
 }
 
 func (h *hub[IdT, GameIdT, PlayerT]) onBroadcast(tpl Template[PlayerT]) {
-	h.logger.Info("[api] onBroadcast.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] onBroadcast.RLock...")
+	}
 	h.mutex.RLock()
 	defer func() {
 		h.mutex.RUnlock()
-		h.logger.Info("[api] ...onBroadcast.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...onBroadcast.RUnlock")
+		}
 	}()
 
 	for _, player := range h.players {
@@ -321,11 +348,15 @@ func (h *hub[IdT, GameIdT, PlayerT]) onBroadcast(tpl Template[PlayerT]) {
 // helpers
 
 func (h *hub[IdT, GameIdT, PlayerT]) GetAllPlayers() []PlayerT {
-	h.logger.Info("[api] GetAllPlayers.Lock...")
+	if DebugLock {
+		h.logger.Info("[api] GetAllPlayers.RLock...")
+	}
 	h.mutex.RLock()
 	defer func() {
 		h.mutex.RUnlock()
-		h.logger.Info("[api] ...GetAllPlayers.Unlock")
+		if DebugLock {
+			h.logger.Info("[api] ...GetAllPlayers.RUnlock")
+		}
 	}()
 
 	return dict.ConvertToList(h.players, dict.Value)

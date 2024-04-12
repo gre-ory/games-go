@@ -17,7 +17,7 @@ type CreateGameService[PlayerT any, GameT any] interface {
 
 type OnCreateGame[PlayerT any, GameT any] func(player PlayerT, game GameT)
 
-func NewCreateGameApi[PlayerT any, GameT any](logger *zap.Logger, service CreateGameService[PlayerT, GameT], onCreateGame OnCreateGame[PlayerT, GameT]) CreateGameServer[PlayerT] {
+func NewCreateGameServer[PlayerT any, GameT any](logger *zap.Logger, service CreateGameService[PlayerT, GameT], onCreateGame OnCreateGame[PlayerT, GameT]) CreateGameServer[PlayerT] {
 	return &createGameServer[PlayerT, GameT]{
 		logger:       logger,
 		service:      service,

@@ -8,13 +8,15 @@ import (
 	"github.com/gre-ory/games-go/internal/util"
 	"github.com/gre-ory/games-go/internal/util/loc"
 
-	"github.com/gre-ory/games-go/internal/game/share/model"
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+
+	"github.com/gre-ory/games-go/internal/game/skyjo/model"
 )
 
 func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 	s.logger.Info("[api] page_home", zap.String("path", r.URL.Path))
 
-	var cookie *model.Cookie
+	var cookie *share_model.Cookie
 	var err error
 
 	switch {
@@ -40,7 +42,7 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 		// render
 		//
 
-		localizer := loc.NewLocalizer(s.logger, string(cookie.Language))
+		localizer := loc.NewLocalizer(model.AppId, string(cookie.Language), s.logger)
 		s.Render(w, "page-home", map[string]any{
 			"cookie": cookie,
 			"lang":   localizer,

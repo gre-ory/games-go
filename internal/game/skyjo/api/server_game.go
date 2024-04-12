@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"go.uber.org/zap"
@@ -36,6 +37,11 @@ func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, serv
 		hub:          websocket.NewHub[model.PlayerId, model.GameId, *model.Player](logger, service.WrapData, hxServer),
 	}
 
+	server.CreateGameServer = share_api.NewCreateGameServer(logger, service, server.OnCreateGame)
+	server.JoinGameServer = share_api.NewJoinGameServer(logger, service, server.OnJoinGame)
+	server.StartGameServer = share_api.NewStartGameServer(logger, service, server.OnStartGame)
+	server.LeaveGameServer = share_api.NewLeaveGameServer(logger, service, server.OnLeaveGame)
+
 	cookieServer.RegisterOnCookie(server.onCookie)
 
 	return server
@@ -45,7 +51,7 @@ type gameServer struct {
 	util.HxServer
 	share_api.CookieServer
 	share_api.CreateGameServer[*model.Player]
-	share_api.JoinGameServer[*model.Player]
+	share_api.JoinGameServer[*model.Player, model.GameId]
 	share_api.StartGameServer[*model.Player]
 	share_api.LeaveGameServer[*model.Player]
 	logger  *zap.Logger
@@ -57,8 +63,12 @@ type gameServer struct {
 // register
 
 func (s *gameServer) RegisterRoutes(router *httprouter.Router) {
-	router.HandlerFunc(http.MethodGet, "/skj", s.page_home)
-	router.HandlerFunc(http.MethodGet, "/skj/htmx/connect", s.htmx_connect)
+	router.HandlerFunc(http.MethodGet, s.path(""), s.page_home)
+	router.HandlerFunc(http.MethodGet, s.path("htmx/connect"), s.htmx_connect)
+}
+
+func (s *gameServer) path(path string) string {
+	return fmt.Sprintf("/%s/%s", model.AppId, strings.TrimPrefix(path, "/"))
 }
 
 // //////////////////////////////////////////////////
@@ -107,6 +117,35 @@ func (s *gameServer) broadcastPlayer(player *model.Player) {
 			s.broadcastGame(game)
 		}
 	}
+}
+
+// //////////////////////////////////////////////////
+// on game events
+
+func (s *gameServer) OnCreateGame(player *model.Player, game *model.Game) {
+	s.broadcastGameLayoutToPlayer(player.GetId(), game)
+	s.OnGame(game)
+}
+
+func (s *gameServer) OnJoinGame(player *model.Player, game *model.Game) {
+	s.broadcastGameLayoutToPlayer(player.GetId(), game)
+	s.OnGame(game)
+}
+
+func (s *gameServer) OnStartGame(player *model.Player, game *model.Game) {
+	s.OnGame(game)
+}
+
+func (s *gameServer) OnLeaveGame(player *model.Player, game *model.Game) {
+	s.broadcastJoinableGamesToPlayer(player.GetId())
+	s.OnGame(game)
+}
+
+func (s *gameServer) OnGame(game *model.Game) {
+	if game != nil {
+		s.broadcastGame(game)
+	}
+	s.broadcastJoinableGames()
 }
 
 // //////////////////////////////////////////////////

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"go.uber.org/zap"
@@ -53,8 +54,12 @@ type gameServer struct {
 // register
 
 func (s *gameServer) RegisterRoutes(router *httprouter.Router) {
-	router.HandlerFunc(http.MethodGet, "/ttt", s.page_home)
-	router.HandlerFunc(http.MethodGet, "/ttt/htmx/connect", s.htmx_connect)
+	router.HandlerFunc(http.MethodGet, s.path(""), s.page_home)
+	router.HandlerFunc(http.MethodGet, s.path("htmx/connect"), s.htmx_connect)
+}
+
+func (s *gameServer) path(path string) string {
+	return fmt.Sprintf("/%s/%s", model.AppId, strings.TrimPrefix(path, "/"))
 }
 
 // //////////////////////////////////////////////////

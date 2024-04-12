@@ -17,7 +17,7 @@ type GameService interface {
 	GetJoinableGames() []*model.Game
 	GetNotJoinableGames(playerId model.PlayerId) []*model.Game
 	GetGame(id model.GameId) (*model.Game, error)
-	NewGame() (*model.Game, error)
+	CreateGame(player *model.Player) (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
 	StartGame(player *model.Player) (*model.Game, error)
 	PlayGame(player *model.Player, x, y int) (*model.Game, error)
@@ -28,7 +28,7 @@ type GameService interface {
 
 func NewGameService(logger *zap.Logger, gameStore store.GameStore, playerStore store.PlayerStore) GameService {
 	return &gameService{
-		GameService: share_service.NewGameService(logger, gameStore),
+		GameService: share_service.NewGameService(logger, model.AppId, gameStore),
 		logger:      logger,
 		gameStore:   gameStore,
 		playerStore: playerStore,
@@ -59,6 +59,14 @@ func (s *gameService) GetNotJoinableGames(playerId model.PlayerId) []*model.Game
 func (s *gameService) NewGame() (*model.Game, error) {
 	game := model.NewGame(3, 3)
 	return s.StoreGame(game)
+}
+
+func (s *gameService) CreateGame(player *model.Player) (*model.Game, error) {
+	game, err := s.NewGame()
+	if err != nil {
+		return nil, err
+	}
+	return s.joinGame(game, player)
 }
 
 func (s *gameService) JoinGame(id model.GameId, player *model.Player) (*model.Game, error) {

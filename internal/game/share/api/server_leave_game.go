@@ -17,7 +17,7 @@ type LeaveGameService[PlayerT any, GameT any] interface {
 
 type OnLeaveGame[PlayerT any, GameT any] func(player PlayerT, game GameT)
 
-func NewLeaveGameApi[PlayerT any, GameT any](logger *zap.Logger, service LeaveGameService[PlayerT, GameT], onLeaveGame OnLeaveGame[PlayerT, GameT]) LeaveGameServer[PlayerT] {
+func NewLeaveGameServer[PlayerT any, GameT any](logger *zap.Logger, service LeaveGameService[PlayerT, GameT], onLeaveGame OnLeaveGame[PlayerT, GameT]) LeaveGameServer[PlayerT] {
 	return &leaveGameServer[PlayerT, GameT]{
 		logger:      logger,
 		service:     service,

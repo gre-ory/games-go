@@ -46,16 +46,19 @@ type GameService[PlayerIdT comparable, GameIdT comparable, PlayerT Player[Player
 
 func NewGameService[PlayerIdT comparable, GameIdT comparable, PlayerT Player[PlayerIdT, GameIdT], GameT Game[PlayerIdT, GameIdT, PlayerT]](
 	logger *zap.Logger,
+	appId string,
 	gameStore GameStore[GameIdT, GameT],
 ) GameService[PlayerIdT, GameIdT, PlayerT, GameT] {
 	return &gameService[PlayerIdT, GameIdT, PlayerT, GameT]{
 		logger:    logger,
+		appId:     appId,
 		gameStore: gameStore,
 	}
 }
 
 type gameService[PlayerIdT comparable, GameIdT comparable, PlayerT Player[PlayerIdT, GameIdT], GameT Game[PlayerIdT, GameIdT, PlayerT]] struct {
 	logger    *zap.Logger
+	appId     string
 	gameStore GameStore[GameIdT, GameT]
 }
 
@@ -127,8 +130,8 @@ func (s *gameService[PlayerIdT, GameIdT, PlayerT, GameT]) FilterGamesByPlayer(ga
 func (s *gameService[PlayerIdT, GameIdT, PlayerT, GameT]) WrapData(data websocket.Data, player PlayerT) (bool, any) {
 	language := player.GetLanguage()
 	if language != "" {
-		localizer := loc.NewLocalizer(s.logger, language)
-		s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s", player.GetId(), language))
+		localizer := loc.NewLocalizer(s.appId, language, s.logger)
+		s.logger.Info(fmt.Sprintf("[wrap] player %v: app=%s, lang=%s", player.GetId(), s.appId, language))
 		data.With("lang", localizer)
 	}
 	if !player.HasGameId() {
