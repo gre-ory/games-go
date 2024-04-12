@@ -11,22 +11,24 @@ import (
 	"golang.org/x/text/language"
 )
 
-func NewDefaultEmbedBundle(fs embed.FS, langs ...language.Tag) *i18n.Bundle {
+func NewDefaultEmbedBundle(appId string, fs embed.FS, langs ...language.Tag) *i18n.Bundle {
 	if len(langs) == 0 {
 		panic("[loc] missing languages!")
 	}
 
-	return NewEmbedBundle(langs[0], fs, list.Convert(langs, defaultLocPath)...)
+	return NewEmbedBundle(appId, langs[0], fs, list.Convert(langs, defaultLocPath)...)
 }
 
 func defaultLocPath(lang language.Tag) string {
 	return fmt.Sprintf("loc/%s.toml", lang.String())
 }
 
-func NewEmbedBundle(defaultLang language.Tag, fs embed.FS, paths ...string) *i18n.Bundle {
+func NewEmbedBundle(appId string, defaultLang language.Tag, fs embed.FS, paths ...string) *i18n.Bundle {
 	if len(paths) == 0 {
 		panic("[loc] missing language files!")
 	}
+
+	app := GetApp(appId)
 
 	bundle := i18n.NewBundle(defaultLang)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
@@ -37,11 +39,11 @@ func NewEmbedBundle(defaultLang language.Tag, fs embed.FS, paths ...string) *i18
 			continue
 		}
 		lang := file.Tag.String()
-		fmt.Printf("[loc] (+) %s ( %s ) \n", lang, path)
+		fmt.Printf("[loc] %s: (+) lang: %s, path: %s \n", appId, lang, path)
 
-		loadedLocalizers[lang] = i18n.NewLocalizer(bundle, lang)
+		app.AddLocalizer(lang, i18n.NewLocalizer(bundle, lang))
 		if lang == defaultLang.String() {
-			defaultLanguage = &defaultLang
+			app.SetDefaultLanguage(defaultLang.String())
 		}
 	}
 

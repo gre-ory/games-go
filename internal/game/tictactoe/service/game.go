@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/gre-ory/games-go/internal/game/tictactoe/model"
@@ -18,6 +17,7 @@ type GameService interface {
 	GetNotJoinableGames(playerId model.PlayerId) []*model.Game
 	GetGame(id model.GameId) (*model.Game, error)
 	NewGame() (*model.Game, error)
+	CreateGame(player *model.Player) (*model.Game, error)
 	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
 	StartGame(player *model.Player) (*model.Game, error)
 	PlayGame(player *model.Player, x, y int) (*model.Game, error)
@@ -85,6 +85,14 @@ func (s *gameService) NewGame() (*model.Game, error) {
 	return s.storeGame(game)
 }
 
+func (s *gameService) CreateGame(player *model.Player) (*model.Game, error) {
+	game, err := s.NewGame()
+	if err != nil {
+		return nil, err
+	}
+	return s.joinGame(game, player)
+}
+
 func (s *gameService) JoinGame(id model.GameId, player *model.Player) (*model.Game, error) {
 	game, err := s.gameStore.Get(id)
 	if err != nil {
@@ -104,7 +112,7 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 	default:
 	}
 
-	if _, err := game.GetPlayer(player.Id()); err == nil {
+	if _, err := game.GetPlayer(player.GetId()); err == nil {
 		return game, nil
 	}
 	game = game.WithPlayer(player)
@@ -113,7 +121,7 @@ func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.G
 }
 
 func (s *gameService) StartGame(player *model.Player) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +155,7 @@ func (s *gameService) startGame(game *model.Game) (*model.Game, error) {
 }
 
 func (s *gameService) PlayGame(player *model.Player, x, y int) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +175,7 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 	if err != nil {
 		return nil, err
 	}
-	if player.Id() != currentPlayer.Id() {
+	if player.GetId() != currentPlayer.GetId() {
 		return nil, model.ErrWrongPlayer
 	}
 
@@ -189,7 +197,7 @@ func (s *gameService) playGame(game *model.Game, player *model.Player, x, y int)
 }
 
 func (s *gameService) LeaveGame(player *model.Player) (*model.Game, error) {
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +216,7 @@ func (s *gameService) leaveGame(game *model.Game, player *model.Player) (*model.
 			return s.storeGame(game)
 		}
 	case model.Started:
-		winnerId, err := game.GetOtherPlayerId(player.Id())
+		winnerId, err := game.GetOtherPlayerId(player.GetId())
 		if err != nil {
 			return nil, err
 		}
@@ -272,13 +280,13 @@ func (s *gameService) WrapData(data websocket.Data, player *model.Player) (bool,
 	if player == nil {
 		return true, data
 	}
-	localizer := loc.NewLocalizer(s.logger, player.Language)
-	s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.Id(), player.Language, localizer.Loc("GameTitle", "ABC")))
+	localizer := loc.NewLocalizer(model.AppId, player.Language, s.logger)
+	// s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.GetId(), player.Language, localizer.Loc("GameTitle", "ABC")))
 	data.With("lang", localizer)
 	if !player.HasGameId() {
 		return true, data
 	}
-	game, err := s.gameStore.Get(player.GameId())
+	game, err := s.gameStore.Get(player.GetGameId())
 	if err != nil {
 		return false, nil
 	}

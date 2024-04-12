@@ -6,15 +6,6 @@ import (
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"go.uber.org/zap"
-	"golang.org/x/text/language"
-)
-
-// //////////////////////////////////////////////////
-// global
-
-var (
-	defaultLanguage  *language.Tag
-	loadedLocalizers = map[string]*i18n.Localizer{}
 )
 
 // //////////////////////////////////////////////////
@@ -29,19 +20,18 @@ type Localizer interface {
 // //////////////////////////////////////////////////
 // constructor
 
-func NewLocalizer(logger *zap.Logger, lang string) Localizer {
+func NewLocalizer(appId string, lang string, logger *zap.Logger) Localizer {
+	app := GetApp(appId)
 	localizers := make([]*i18n.Localizer, 2)
-	if lang != "" {
-		if localizer, ok := loadedLocalizers[lang]; ok {
-			localizers = append(localizers, localizer)
-		}
+	if localizer := app.GetLocalizer(lang); localizer != nil {
+		localizers = append(localizers, localizer)
 	}
-	if defaultLanguage != nil && (lang == "" || defaultLanguage.String() != lang) {
-		if defaultLocalizer, ok := loadedLocalizers[defaultLanguage.String()]; ok {
-			localizers = append(localizers, defaultLocalizer)
-		}
+	if localizer := app.GetDefaultLocalizer(); localizer != nil {
+		localizers = append(localizers, localizer)
 	}
 	return &localizer{
+		AppId:      appId,
+		Language:   lang,
 		logger:     logger,
 		localizers: localizers,
 	}
@@ -51,6 +41,8 @@ func NewLocalizer(logger *zap.Logger, lang string) Localizer {
 // localizer
 
 type localizer struct {
+	AppId      string
+	Language   string
 	logger     *zap.Logger
 	localizers []*i18n.Localizer
 }

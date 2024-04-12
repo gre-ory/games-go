@@ -22,9 +22,15 @@ import (
 
 	"github.com/gre-ory/games-go/internal/util/list"
 
-	"github.com/gre-ory/games-go/internal/game/tictactoe/api"
-	"github.com/gre-ory/games-go/internal/game/tictactoe/service"
-	"github.com/gre-ory/games-go/internal/game/tictactoe/store"
+	share_api "github.com/gre-ory/games-go/internal/game/share/api"
+
+	ttt_api "github.com/gre-ory/games-go/internal/game/tictactoe/api"
+	ttt_service "github.com/gre-ory/games-go/internal/game/tictactoe/service"
+	ttt_store "github.com/gre-ory/games-go/internal/game/tictactoe/store"
+
+	skj_api "github.com/gre-ory/games-go/internal/game/skyjo/api"
+	skj_service "github.com/gre-ory/games-go/internal/game/skyjo/service"
+	skj_store "github.com/gre-ory/games-go/internal/game/skyjo/store"
 )
 
 // //////////////////////////////////////////////////
@@ -65,27 +71,34 @@ func main() {
 	// store
 	//
 
-	gameStore := store.NewGameStore()
-	playerStore := store.NewPlayerStore()
+	ttt_gameStore := ttt_store.NewGameStore()
+	ttt_playerStore := ttt_store.NewPlayerStore()
+	skj_gameStore := skj_store.NewGameStore()
+	skj_playerStore := skj_store.NewPlayerStore()
 
 	//
 	// service
 	//
 
-	gameService := service.NewGameService(logger, gameStore, playerStore)
+	ttt_service := ttt_service.NewGameService(logger, ttt_gameStore, ttt_playerStore)
+	skj_service := skj_service.NewGameService(logger, skj_gameStore, skj_playerStore)
 
 	//
 	// api
 	//
 
-	gameServer := api.NewGameServer(logger, gameService, secret.CookieSecret)
+	cookie_server := share_api.NewCookieServer(logger, config.Cookie.Key, config.Cookie.MaxAge, secret.CookieSecret)
+	ttt_server := ttt_api.NewGameServer(logger, cookie_server, ttt_service)
+	skj_server := skj_api.NewGameServer(logger, cookie_server, skj_service)
 
 	//
 	// router
 	//
 
 	router := httprouter.New()
-	gameServer.RegisterRoutes(router)
+	cookie_server.RegisterRoutes(router)
+	ttt_server.RegisterRoutes(router)
+	skj_server.RegisterRoutes(router)
 	router.NotFound = http.FileServer(http.FS(staticFS))
 
 	//
@@ -184,17 +197,26 @@ func NewLogger(config LogConfig) *zap.Logger {
 // //////////////////////////////////////////////////
 // request logging
 
+const (
+	DebugStaticResource = false
+	DebugApiCall        = true
+)
+
 func WithRequestLogging(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/static/") {
-				logger.Info(fmt.Sprintf("[%s] %s %s", r.Method, r.URL.Path, r.UserAgent()))
+				if DebugStaticResource {
+					logger.Info(fmt.Sprintf("[%s] %s %s", r.Method, r.URL.Path, r.UserAgent()))
+				}
 			} else {
-				now := time.Now()
-				logger.Info(fmt.Sprintf("[%s] ------------------------- %s ------------------------- %s", r.Method, r.URL.Path, r.UserAgent()))
-				defer func() {
-					logger.Info(fmt.Sprintf("[%s] ------------------------- %s ( %s ) ------------------------- %s", r.Method, r.URL.Path, time.Since(now), r.UserAgent()))
-				}()
+				if DebugApiCall {
+					now := time.Now()
+					logger.Info(fmt.Sprintf("[%s] ------------------------- %s ------------------------- %s", r.Method, r.URL.Path, r.UserAgent()))
+					defer func() {
+						logger.Info(fmt.Sprintf("[%s] ------------------------- %s ( %s ) ------------------------- %s", r.Method, r.URL.Path, time.Since(now), r.UserAgent()))
+					}()
+				}
 			}
 			next.ServeHTTP(w, r)
 		})
@@ -288,6 +310,7 @@ type Config struct {
 	App     string       `yaml:"app"`
 	Version string       `yaml:"version"`
 	Log     LogConfig    `yaml:"log"`
+	Cookie  CookieConfig `yaml:"cookie"`
 	Server  ServerConfig `yaml:"server"`
 }
 
@@ -296,6 +319,11 @@ type LogConfig struct {
 	Encoder string `yaml:"encoder"`
 	Level   string `yaml:"level"`
 	File    string `yaml:"file"`
+}
+
+type CookieConfig struct {
+	Key    string `yaml:"key"`
+	MaxAge int    `yaml:"max-age"`
 }
 
 type ServerConfig struct {

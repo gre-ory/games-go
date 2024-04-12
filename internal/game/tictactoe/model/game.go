@@ -51,6 +51,14 @@ type Game struct {
 	Rows      map[int]*Row
 }
 
+func (g *Game) GetId() GameId {
+	return g.Id
+}
+
+func (g *Game) GetStatus() GameStatus {
+	return g.Status
+}
+
 func (g *Game) Started() bool {
 	return g.Status == Started
 }
@@ -60,13 +68,13 @@ func (g *Game) Stopped() bool {
 }
 
 func (g *Game) WithPlayer(player *Player) *Game {
-	g.Players[player.Id()] = player
+	g.Players[player.GetId()] = player
 	player.SetGameId(g.Id)
 	return g
 }
 
 func (g *Game) WithoutPlayer(player *Player) *Game {
-	delete(g.Players, player.Id())
+	delete(g.Players, player.GetId())
 	player.UnsetGameId()
 	return g
 }
@@ -144,7 +152,7 @@ func (g *Game) GetCurrentPlayer() (*Player, error) {
 func (g *Game) WrapData(data websocket.Data, player *Player) (bool, any) {
 	data = data.With("game", g)
 
-	playerId := player.Id()
+	playerId := player.GetId()
 	if playerId == "" {
 		return true, data
 	}
@@ -165,7 +173,7 @@ func (g *Game) Play(player *Player, x, y int) error {
 func (g *Game) SetPlayingPlayer() {
 	currentPlayerId := g.getCurrentPlayerId()
 	for _, player := range g.Players {
-		if currentPlayerId == player.Id() {
+		if currentPlayerId == player.GetId() {
 			player.Status = Playing
 		} else {
 			player.Status = WaitingToPlay
@@ -200,7 +208,7 @@ func (g *Game) HasWinner() (bool, PlayerId) {
 func (g *Game) GetPlayerIdFromRune(symbol rune) PlayerId {
 	for _, player := range g.Players {
 		if player.Symbol == symbol {
-			return player.Id()
+			return player.GetId()
 		}
 	}
 	return ""

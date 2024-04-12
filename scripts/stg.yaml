@@ -6,6 +6,9 @@ log:
   encoder: dev
   level: info
   file: $HOME/_stg/log/games.log
+cookie:
+  key: gg
+  max-age: 3600
 server:
   address: :9021
   white-list-origins:

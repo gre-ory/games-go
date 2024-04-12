@@ -23,7 +23,11 @@ func (s *cookieServer) htmx_user_language_modal(w http.ResponseWriter, r *http.R
 			break
 		}
 
-		s.SetCookie(w, cookie)
+		err = s.SetCookie(w, cookie)
+		if err != nil {
+			break
+		}
+
 		s.hxServer.Render(w, "user-language-modal", cookie.Data().With("available_languages", model.GetAvailableLanguages()))
 		return
 	}

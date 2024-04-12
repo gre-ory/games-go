@@ -98,7 +98,7 @@ func (p *Player) Labels() string {
 	case PLAYER_TWO_SYMBOL:
 		labels = append(labels, "symbol-2")
 	}
-	if p.Active() {
+	if p.IsActive() {
 		switch p.Status {
 		case WaitingToJoin:
 			labels = append(labels, "waiting-to-join")
@@ -126,7 +126,7 @@ func (p *Player) SymbolIcon() string {
 }
 
 func (p *Player) YourMessage(localizer loc.Localizer) template.HTML {
-	if p.Active() {
+	if p.IsActive() {
 		switch p.Status {
 		case WaitingToJoin:
 			return localizer.Loc("YouWaitingToJoin")
@@ -144,7 +144,7 @@ func (p *Player) YourMessage(localizer loc.Localizer) template.HTML {
 }
 
 func (p *Player) Message(localizer loc.Localizer) template.HTML {
-	if p.Active() {
+	if p.IsActive() {
 		switch p.Status {
 		case WaitingToJoin:
 			return localizer.Loc("PlayerWaitingToJoin")

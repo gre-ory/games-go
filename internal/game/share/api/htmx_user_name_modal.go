@@ -23,7 +23,11 @@ func (s *cookieServer) htmx_user_name_modal(w http.ResponseWriter, r *http.Reque
 			break
 		}
 
-		s.SetCookie(w, cookie)
+		err = s.SetCookie(w, cookie)
+		if err != nil {
+			break
+		}
+
 		s.hxServer.Render(w, "user-name-modal", cookie.Data())
 		return
 	}

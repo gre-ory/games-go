@@ -31,12 +31,15 @@ type CookieServer interface {
 	GetValidCookie(r *http.Request) (*model.Cookie, error)
 	SetCookie(w http.ResponseWriter, cookie *model.Cookie) error
 	ClearCookie(w http.ResponseWriter) error
+	RegisterOnCookie(onCookie CookieCallback)
+	OnCookie(cookie *model.Cookie)
+	RenderUser(cookie *model.Cookie) func(w io.Writer, data any)
 }
 
 // //////////////////////////////////////////////////
 // constructor
 
-func NewCookieServer(logger *zap.Logger, key string, maxAge int, cookieSecret string, cookieCallback CookieCallback) CookieServer {
+func NewCookieServer(logger *zap.Logger, key string, maxAge int, cookieSecret string) CookieServer {
 
 	// TODO replace by proto
 	empty := &model.Cookie{}
@@ -53,22 +56,22 @@ func NewCookieServer(logger *zap.Logger, key string, maxAge int, cookieSecret st
 	}
 
 	return &cookieServer{
-		logger:    logger.With(zap.String("cookie", key)),
-		key:       key,
-		maxAge:    maxAge,
-		encrypter: encrypter,
-		onCookie:  cookieCallback,
-		hxServer:  util.NewHxServer(logger, ShareTpl),
+		logger:      logger.With(zap.String("cookie", key)),
+		key:         key,
+		maxAge:      maxAge,
+		encrypter:   encrypter,
+		onCookieFns: make([]CookieCallback, 0),
+		hxServer:    util.NewHxServer(logger, ShareTpl),
 	}
 }
 
 type cookieServer struct {
-	logger    *zap.Logger
-	key       string
-	maxAge    int
-	encrypter cipher.AEAD
-	onCookie  CookieCallback
-	hxServer  util.HxServer
+	logger      *zap.Logger
+	key         string
+	maxAge      int
+	encrypter   cipher.AEAD
+	onCookieFns []CookieCallback
+	hxServer    util.HxServer
 }
 
 // //////////////////////////////////////////////////
@@ -181,7 +184,26 @@ func (s *cookieServer) SetCookie(w http.ResponseWriter, cookie *model.Cookie) er
 	httpCookie := s.newCookie(cookieBase64, s.maxAge)
 	s.logger.Info("set cookie", zap.Any("cookie", cookie), zap.Any("http-cookie", httpCookie))
 	http.SetCookie(w, httpCookie)
+
 	return nil
+}
+
+// //////////////////////////////////////////////////
+// cookie callbacks
+
+func (s *cookieServer) RegisterOnCookie(onCookie CookieCallback) {
+	s.onCookieFns = append(s.onCookieFns, onCookie)
+}
+
+func (s *cookieServer) OnCookie(cookie *model.Cookie) {
+	if len(s.onCookieFns) == 0 {
+		return
+	}
+
+	s.logger.Info(fmt.Sprintf("[on-cookie] dispatch to %d callbacks", len(s.onCookieFns)), zap.Any("cookie", cookie))
+	for _, onCookieFn := range s.onCookieFns {
+		onCookieFn(cookie)
+	}
 }
 
 // //////////////////////////////////////////////////
@@ -192,6 +214,15 @@ func (s *cookieServer) ClearCookie(w http.ResponseWriter) error {
 	s.logger.Info("clear cookie", zap.String("value", cookie.Value), zap.Int("age", cookie.MaxAge))
 	http.SetCookie(w, cookie)
 	return nil
+}
+
+// //////////////////////////////////////////////////
+// render
+
+func (s *cookieServer) RenderUser(cookie *model.Cookie) func(w io.Writer, data any) {
+	return func(w io.Writer, data any) {
+		s.hxServer.Render(w, "user-oob", cookie.Data())
+	}
 }
 
 // //////////////////////////////////////////////////
