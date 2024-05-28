@@ -126,8 +126,8 @@ func (h *hub[IdT, GameIdT, PlayerT]) onRegisterPlayer(player PlayerT) {
 		}
 	}()
 
-	h.logger.Info(fmt.Sprintf("[register] (+) player %s", player.GetId()))
-	h.players[player.GetId()] = player
+	h.logger.Info(fmt.Sprintf("[register] (+) player %v", player.Id()))
+	h.players[player.Id()] = player
 }
 
 // //////////////////////////////////////////////////
@@ -149,7 +149,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) onUnregisterPlayer(id IdT) {
 		}
 	}()
 
-	h.logger.Info(fmt.Sprintf("[unregister] (-) player %s", id))
+	h.logger.Info(fmt.Sprintf("[unregister] (-) player %v", id))
 	// if player, ok := h.players[id]; ok {
 	if _, ok := h.players[id]; ok {
 		delete(h.players, id)
@@ -169,8 +169,8 @@ func (h *hub[IdT, GameIdT, PlayerT]) UpdatePlayer(player PlayerT) {
 		}
 	}()
 
-	h.logger.Info(fmt.Sprintf("[update] (~) player %s", player.GetId()))
-	h.players[player.GetId()] = player
+	h.logger.Info(fmt.Sprintf("[update] (~) player %v", player.Id()))
+	h.players[player.Id()] = player
 }
 
 // //////////////////////////////////////////////////
@@ -204,16 +204,6 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToNotPlayingPlayersFn(name string,
 
 func (h *hub[IdT, GameIdT, PlayerT]) AcceptNotPlayingPlayersFn(acceptFn func(player PlayerT) (bool, any)) func(player PlayerT) (bool, any) {
 	return func(player PlayerT) (bool, any) {
-		// h.logger.Info(
-		// 	fmt.Sprintf(
-		// 		"[broadcast] player %s -> can-join: %t, active: %t, id: %t, game: %t",
-		// 		player.GetId(),
-		// 		player.CanJoin(),
-		// 		player.IsActive(),
-		// 		player.HasId(),
-		// 		player.HasGameId(),
-		// 	),
-		// )
 		if player.CanJoin() {
 			if acceptFn != nil {
 				return acceptFn(player)
@@ -239,7 +229,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToGamePlayersFn(name string, gameI
 
 func (h *hub[IdT, GameIdT, PlayerT]) AcceptGamePlayersFn(gameId GameIdT, acceptFn func(player PlayerT) (bool, any)) func(player PlayerT) (bool, any) {
 	return func(player PlayerT) (bool, any) {
-		if player.GetGameId() == gameId {
+		if player.GameId() == gameId {
 			if acceptFn != nil {
 				return acceptFn(player)
 			}
@@ -264,7 +254,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) BroadcastToPlayerFn(name string, id IdT, ac
 
 func (h *hub[IdT, GameIdT, PlayerT]) AcceptPlayerFn(id IdT, acceptFn func(player PlayerT) (bool, any)) func(player PlayerT) (bool, any) {
 	return func(player PlayerT) (bool, any) {
-		if player.GetId() == id {
+		if player.Id() == id {
 			if acceptFn != nil {
 				return acceptFn(player)
 			}
@@ -317,7 +307,7 @@ func (h *hub[IdT, GameIdT, PlayerT]) NewTemplate(acceptFn func(player PlayerT) (
 func (h *hub[IdT, GameIdT, PlayerT]) WrapPlayerData(data Data, player PlayerT) (bool, any) {
 	data.With("player", player)
 	if player.HasGameId() {
-		data.With("game_id", player.GetGameId())
+		data.With("game_id", player.GameId())
 	}
 	if h.wrapData != nil {
 		return h.wrapData(data, player)
@@ -370,6 +360,6 @@ func (h *hub[IdT, GameIdT, PlayerT]) GetNotPlayingPlayers() []PlayerT {
 
 func (h *hub[IdT, GameIdT, PlayerT]) GetGamePlayers(gameId GameIdT) []PlayerT {
 	return list.Filter(h.GetAllPlayers(), func(player PlayerT) bool {
-		return player.GetGameId() == gameId
+		return player.GameId() == gameId
 	})
 }

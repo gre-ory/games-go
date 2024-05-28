@@ -24,13 +24,13 @@ import (
 
 	share_api "github.com/gre-ory/games-go/internal/game/share/api"
 
-	ttt_api "github.com/gre-ory/games-go/internal/game/tictactoe/api"
-	ttt_service "github.com/gre-ory/games-go/internal/game/tictactoe/service"
-	ttt_store "github.com/gre-ory/games-go/internal/game/tictactoe/store"
+	ttt_api "github.com/gre-ory/games-go/internal/game/ttt/api"
+	ttt_service "github.com/gre-ory/games-go/internal/game/ttt/service"
+	ttt_store "github.com/gre-ory/games-go/internal/game/ttt/store"
 
-	skj_api "github.com/gre-ory/games-go/internal/game/skyjo/api"
-	skj_service "github.com/gre-ory/games-go/internal/game/skyjo/service"
-	skj_store "github.com/gre-ory/games-go/internal/game/skyjo/store"
+	czm_api "github.com/gre-ory/games-go/internal/game/czm/api"
+	czm_service "github.com/gre-ory/games-go/internal/game/czm/service"
+	czm_store "github.com/gre-ory/games-go/internal/game/czm/store"
 )
 
 // //////////////////////////////////////////////////
@@ -73,15 +73,15 @@ func main() {
 
 	ttt_gameStore := ttt_store.NewGameStore()
 	ttt_playerStore := ttt_store.NewPlayerStore()
-	skj_gameStore := skj_store.NewGameStore()
-	skj_playerStore := skj_store.NewPlayerStore()
+	czm_gameStore := czm_store.NewGameStore()
+	czm_playerStore := czm_store.NewPlayerStore()
 
 	//
 	// service
 	//
 
 	ttt_service := ttt_service.NewGameService(logger, ttt_gameStore, ttt_playerStore)
-	skj_service := skj_service.NewGameService(logger, skj_gameStore, skj_playerStore)
+	czm_service := czm_service.NewGameService(logger, czm_gameStore, czm_playerStore)
 
 	//
 	// api
@@ -89,7 +89,7 @@ func main() {
 
 	cookie_server := share_api.NewCookieServer(logger, config.Cookie.Key, config.Cookie.MaxAge, secret.CookieSecret)
 	ttt_server := ttt_api.NewGameServer(logger, cookie_server, ttt_service)
-	skj_server := skj_api.NewGameServer(logger, cookie_server, skj_service)
+	czm_server := czm_api.NewGameServer(logger, cookie_server, czm_service)
 
 	//
 	// router
@@ -98,7 +98,7 @@ func main() {
 	router := httprouter.New()
 	cookie_server.RegisterRoutes(router)
 	ttt_server.RegisterRoutes(router)
-	skj_server.RegisterRoutes(router)
+	czm_server.RegisterRoutes(router)
 	router.NotFound = http.FileServer(http.FS(staticFS))
 
 	//

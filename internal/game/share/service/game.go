@@ -14,9 +14,9 @@ import (
 )
 
 type Player[PlayerIdT comparable, GameIdT comparable] interface {
-	GetId() PlayerIdT
+	Id() PlayerIdT
 	HasGameId() bool
-	GetGameId() GameIdT
+	GameId() GameIdT
 	GetLanguage() string
 }
 
@@ -97,7 +97,8 @@ func (s *gameService[PlayerIdT, GameIdT, PlayerT, GameT]) OnPlayerGame(player Pl
 		var empty GameT
 		return empty, model.ErrMissingGameId
 	}
-	game, err := s.gameStore.Get(player.GetGameId())
+	s.logger.Info("OnPlayerGame", zap.Any("game-id", player.GameId()), zap.Any("player-id", player.Id()))
+	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		var empty GameT
 		return empty, err
@@ -131,13 +132,13 @@ func (s *gameService[PlayerIdT, GameIdT, PlayerT, GameT]) WrapData(data websocke
 	language := player.GetLanguage()
 	if language != "" {
 		localizer := loc.NewLocalizer(s.appId, language, s.logger)
-		s.logger.Info(fmt.Sprintf("[wrap] player %v: app=%s, lang=%s", player.GetId(), s.appId, language))
+		s.logger.Info(fmt.Sprintf("[wrap] player %v: app=%s, lang=%s", player.Id(), s.appId, language))
 		data.With("lang", localizer)
 	}
 	if !player.HasGameId() {
 		return true, data
 	}
-	game, err := s.gameStore.Get(player.GetGameId())
+	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		return false, nil
 	}

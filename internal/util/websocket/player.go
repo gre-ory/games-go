@@ -13,10 +13,10 @@ import (
 
 type Player[IdT comparable, GameIdT comparable] interface {
 	HasId() bool
-	GetId() IdT
+	Id() IdT
 
 	HasGameId() bool
-	GetGameId() GameIdT
+	GameId() GameIdT
 	SetGameId(gameId GameIdT)
 	UnsetGameId()
 	CanJoin() bool
@@ -60,7 +60,7 @@ func NewPlayer[IdT comparable, GameIdT comparable](
 	onClose func(id IdT),
 ) Player[IdT, GameIdT] {
 	return &player[IdT, GameIdT]{
-		Id:          id,
+		id:          id,
 		logger:      logger,
 		onMessage:   onMessage,
 		onUpdate:    onUpdate,
@@ -74,7 +74,7 @@ func NewPlayer[IdT comparable, GameIdT comparable](
 
 type player[IdT comparable, GameIdT comparable] struct {
 	sync.RWMutex
-	Id               IdT
+	id               IdT
 	gameId           GameIdT
 	logger           *zap.Logger
 	active           bool
@@ -93,11 +93,11 @@ type player[IdT comparable, GameIdT comparable] struct {
 
 func (p *player[IdT, GameIdT]) HasId() bool {
 	var empty IdT
-	return p.Id != empty
+	return p.id != empty
 }
 
-func (p *player[IdT, GameIdT]) GetId() IdT {
-	return p.Id
+func (p *player[IdT, GameIdT]) Id() IdT {
+	return p.id
 }
 
 func (p *player[IdT, GameIdT]) HasGameId() bool {
@@ -105,7 +105,7 @@ func (p *player[IdT, GameIdT]) HasGameId() bool {
 	return p.gameId != empty
 }
 
-func (p *player[IdT, GameIdT]) GetGameId() GameIdT {
+func (p *player[IdT, GameIdT]) GameId() GameIdT {
 	return p.gameId
 }
 
@@ -130,7 +130,7 @@ func (p *player[IdT, GameIdT]) ConnectSocket(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	logger := p.logger.With(zap.Any("player", p.Id))
+	logger := p.logger.With(zap.Any("player", p.Id()))
 
 	p.Open(logger, conn)
 	go p.WriteSocket(logger)
@@ -145,25 +145,25 @@ func (p *player[IdT, GameIdT]) ReadSocket(logger *zap.Logger) {
 		r := recover()
 		if r != nil {
 			if err, ok := r.(error); ok {
-				logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED: ERROR %q → Close", p.Id, err.Error()), zap.Error(err))
+				logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED: ERROR %q → Close", p.Id(), err.Error()), zap.Error(err))
 			} else {
-				logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED: PANIC → Close", p.Id), zap.Any("panic", r))
+				logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED: PANIC → Close", p.Id()), zap.Any("panic", r))
 			}
 		} else {
-			logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED → Close", p.Id))
+			logger.Info(fmt.Sprintf("[ws] player %v → read CLOSED → Close", p.Id()))
 		}
 		p.Lock()
 		p.readClosed = true
 		p.Unlock()
 		p.Close(logger)
 	}()
-	logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.Id()))
 
 	p.conn.SetReadLimit(maxMessageSize)
 	p.conn.SetReadDeadline(time.Now().Add(pongWait))
 	p.conn.SetPongHandler(func(msg string) error {
 		if DebugPing {
-			logger.Info(fmt.Sprintf("[ws] player %v ← pong", p.Id), zap.Any("msg", msg))
+			logger.Info(fmt.Sprintf("[ws] player %v ← pong", p.Id()), zap.Any("msg", msg))
 		}
 		p.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
@@ -171,18 +171,18 @@ func (p *player[IdT, GameIdT]) ReadSocket(logger *zap.Logger) {
 	for {
 		_, message, err := p.conn.ReadMessage()
 		if err != nil {
-			logger.Warn(fmt.Sprintf("[ws] player %v ← receive ERROR %q → BREAK", p.Id, err.Error()), zap.Error(err))
+			logger.Warn(fmt.Sprintf("[ws] player %v ← receive ERROR %q → BREAK", p.Id(), err.Error()), zap.Error(err))
 			break
 		}
 		if len(message) == 0 {
-			logger.Info(fmt.Sprintf("[ws] player %v ← receive EMPTY message → SKIP", p.Id))
+			logger.Info(fmt.Sprintf("[ws] player %v ← receive EMPTY message → SKIP", p.Id()))
 			continue
 		}
 		if DebugMessage {
-			logger.Info(fmt.Sprintf("[ws] player %v ← receive message ← %s", p.Id, message))
+			logger.Info(fmt.Sprintf("[ws] player %v ← receive message ← %s", p.Id(), message))
 		}
 		if p.onMessage != nil {
-			p.onMessage(p.Id, message)
+			p.onMessage(p.id, message)
 		}
 	}
 }
@@ -194,19 +194,19 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 		r := recover()
 		if r != nil {
 			if err, ok := r.(error); ok {
-				logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED: ERROR %q", p.Id, err.Error()), zap.Error(err))
+				logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED: ERROR %q", p.Id(), err.Error()), zap.Error(err))
 			} else {
-				logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED: PANIC", p.Id), zap.Any("panic", r))
+				logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED: PANIC", p.Id()), zap.Any("panic", r))
 			}
 		} else {
-			logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED", p.Id))
+			logger.Info(fmt.Sprintf("[ws] player %v → write CLOSED", p.Id()))
 		}
 		p.Lock()
 		p.writeClosed = true
 		p.Unlock()
 		p.Close(logger)
 	}()
-	logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.Id()))
 
 	for {
 		select {
@@ -214,33 +214,33 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
-				logger.Info(fmt.Sprintf("[ws] player %v → send channel CLOSED → CLOSE message sent → BREAK", p.Id))
+				logger.Info(fmt.Sprintf("[ws] player %v → send channel CLOSED → CLOSE message sent → BREAK", p.Id()))
 				p.closeMessageSent <- struct{}{}
 				return
 			}
 
 			w, err := p.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				logger.Info(fmt.Sprintf("[ws] player %v → send message: ERROR %q → BREAK", p.Id, err.Error()))
+				logger.Info(fmt.Sprintf("[ws] player %v → send message: ERROR %q → BREAK", p.Id(), err.Error()))
 				return
 			}
 			if DebugMessage {
-				logger.Info(fmt.Sprintf("[ws] player %v → send message → %s", p.Id, message))
+				logger.Info(fmt.Sprintf("[ws] player %v → send message → %s", p.Id(), message))
 			}
 			w.Write(message)
 
 			if err := w.Close(); err != nil {
-				logger.Info(fmt.Sprintf("[ws] player %v → close writer: ERROR %q → BREAK", p.Id, err.Error()))
+				logger.Info(fmt.Sprintf("[ws] player %v → close writer: ERROR %q → BREAK", p.Id(), err.Error()))
 				return
 			}
 		case <-p.pingTicker.C:
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Info(fmt.Sprintf("[ws] player %v → ping: ERROR %q → BREAK", p.Id, err.Error()))
+				logger.Info(fmt.Sprintf("[ws] player %v → ping: ERROR %q → BREAK", p.Id(), err.Error()))
 				return
 			}
 			if DebugPing {
-				logger.Info(fmt.Sprintf("[ws] player %v → ping", p.Id))
+				logger.Info(fmt.Sprintf("[ws] player %v → ping", p.Id()))
 			}
 		}
 	}
@@ -281,7 +281,7 @@ func (p *player[IdT, GameIdT]) IsClosed() bool {
 
 func (p *player[IdT, GameIdT]) Open(logger *zap.Logger, conn *ws.Conn) {
 	if !p.IsClosed() {
-		logger.Info(fmt.Sprintf("[ws] player %v → NOT closed → Close", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → NOT closed → Close", p.Id()))
 		p.Close(logger)
 	}
 
@@ -296,17 +296,17 @@ func (p *player[IdT, GameIdT]) Open(logger *zap.Logger, conn *ws.Conn) {
 	p.closed = false
 	p.Unlock()
 
-	logger.Info(fmt.Sprintf("[ws] player %v → OPEN -> ACTIVATE", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → OPEN -> ACTIVATE", p.Id()))
 	p.Activate(logger)
 }
 
 func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
 	if p.IsClosed() {
-		logger.Info(fmt.Sprintf("[ws] player %v → ALREADY closed", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → ALREADY closed", p.Id()))
 		return
 	}
 	if p.IsClosing() {
-		logger.Info(fmt.Sprintf("[ws] player %v → ALREADY closing", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → ALREADY closing", p.Id()))
 		return
 	}
 
@@ -315,25 +315,25 @@ func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
 	p.Unlock()
 
 	if p.onClose != nil {
-		p.onClose(p.Id)
+		p.onClose(p.id)
 	}
 
-	logger.Info(fmt.Sprintf("[ws] player %v → stop ping ticker", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → stop ping ticker", p.Id()))
 	p.pingTicker.Stop()
 
 	if p.IsWriteClosed() {
-		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.Id()))
 		close(p.send)
 		close(p.closeMessageSent)
 	} else {
-		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel", p.Id()))
 		close(p.send)
-		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel → waiting close message to be sent...", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → stop send channel → waiting close message to be sent...", p.Id()))
 		<-p.closeMessageSent
 		close(p.closeMessageSent)
 	}
 
-	logger.Info(fmt.Sprintf("[ws] player %v → closing connection", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → closing connection", p.Id()))
 	p.conn.Close()
 
 	p.Lock()
@@ -345,7 +345,7 @@ func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
 	p.closed = true
 	p.Unlock()
 
-	logger.Info(fmt.Sprintf("[ws] player %v → CLOSED → DEACTIVATE", p.Id))
+	logger.Info(fmt.Sprintf("[ws] player %v → CLOSED → DEACTIVATE", p.Id()))
 	p.Deactivate(logger)
 }
 
@@ -366,10 +366,10 @@ func (p *player[IdT, GameIdT]) Activate(logger *zap.Logger) {
 	p.Unlock()
 
 	if p.onUpdate != nil {
-		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE → callback", p.Id))
-		p.onUpdate(p.Id)
+		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE → callback", p.Id()))
+		p.onUpdate(p.id)
 	} else {
-		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.Id()))
 	}
 }
 
@@ -383,9 +383,9 @@ func (p *player[IdT, GameIdT]) Deactivate(logger *zap.Logger) {
 	p.Unlock()
 
 	if p.onUpdate != nil {
-		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE → callback", p.Id))
-		p.onUpdate(p.Id)
+		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE → callback", p.Id()))
+		p.onUpdate(p.id)
 	} else {
-		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.Id))
+		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.Id()))
 	}
 }

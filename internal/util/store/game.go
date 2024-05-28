@@ -1,8 +1,8 @@
 package store
 
 type Game[IdT comparable, StatusT comparable] interface {
-	GetId() IdT
-	GetStatus() StatusT
+	Id() IdT
+	Status() StatusT
 }
 
 type GameStore[IdT comparable, StatusT comparable, GameT Game[IdT, StatusT]] interface {
@@ -25,7 +25,7 @@ type gameMemoryStore[IdT comparable, StatusT comparable, GameT Game[IdT, StatusT
 func (s *gameMemoryStore[IdT, StatusT, GameT]) ListStatus(status StatusT) []GameT {
 	filtered := make([]GameT, 0, len(s.games))
 	for _, game := range s.games {
-		if game.GetStatus() == status {
+		if game.Status() == status {
 			filtered = append(filtered, game)
 		}
 	}
@@ -33,7 +33,7 @@ func (s *gameMemoryStore[IdT, StatusT, GameT]) ListStatus(status StatusT) []Game
 }
 
 func (s *gameMemoryStore[IdT, StatusT, GameT]) Set(game GameT) error {
-	s.games[game.GetId()] = game
+	s.games[game.Id()] = game
 	return nil
 }
 

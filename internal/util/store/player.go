@@ -1,7 +1,7 @@
 package store
 
 type Player[IdT comparable] interface {
-	GetId() IdT
+	Id() IdT
 }
 
 type PlayerStore[IdT comparable, PlayerT Player[IdT]] interface {
@@ -21,7 +21,7 @@ type playerMemoryStore[IdT comparable, PlayerT Player[IdT]] struct {
 }
 
 func (s *playerMemoryStore[IdT, PlayerT]) Set(player PlayerT) error {
-	s.players[player.GetId()] = player
+	s.players[player.Id()] = player
 	return nil
 }
 

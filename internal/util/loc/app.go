@@ -12,7 +12,7 @@ var (
 )
 
 func registerApp(app App) {
-	apps[app.GetId()] = app
+	apps[app.Id()] = app
 }
 
 func GetApp(id string) App {
@@ -27,7 +27,7 @@ func GetApp(id string) App {
 // global
 
 type App interface {
-	GetId() string
+	Id() string
 	SetDefaultLanguage(lang string)
 	AddLocalizer(lang string, localizer *i18n.Localizer)
 	GetLocalizer(lang string) *i18n.Localizer
@@ -49,7 +49,7 @@ type app struct {
 	localizers      map[string]*i18n.Localizer
 }
 
-func (a *app) GetId() string {
+func (a *app) Id() string {
 	return a.ID
 }
 
