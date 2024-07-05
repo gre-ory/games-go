@@ -1,9 +1,5 @@
 package model
 
-import (
-	"github.com/gre-ory/games-go/internal/util/websocket"
-)
-
 type Cookie struct {
 	Id       UserId
 	Name     UserName
@@ -19,6 +15,10 @@ func NewCookie() *Cookie {
 		Avatar:   1,
 		Language: UserLanguage_Fr,
 	}
+}
+
+func (c *Cookie) PlayerId() PlayerId {
+	return PlayerId(c.Id)
 }
 
 func (c *Cookie) Sanitize() {
@@ -66,9 +66,9 @@ func (c *Cookie) Validate() error {
 	return nil
 }
 
-func (c *Cookie) Data() websocket.Data {
+func (c *Cookie) Data() map[string]any {
 	if c != nil && c.Id != "" {
-		return websocket.Data{
+		return map[string]any{
 			"user": c,
 		}
 	}

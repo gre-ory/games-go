@@ -3,19 +3,12 @@ package model
 import (
 	"html/template"
 	"strings"
-	"time"
 
-	"github.com/gre-ory/games-go/internal/util"
-	"github.com/gre-ory/games-go/internal/util/list"
 	"github.com/gre-ory/games-go/internal/util/loc"
-	"github.com/gre-ory/games-go/internal/util/websocket"
+
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 )
-
-type GameId string
-
-func NewGameId() GameId {
-	return GameId(util.GenerateGameId())
-}
 
 func NewGame(nbRow, nbColumn int) *Game {
 	rows := make(map[int]*Row, nbRow)
@@ -23,145 +16,59 @@ func NewGame(nbRow, nbColumn int) *Game {
 		rows[y] = NewRow(nbColumn)
 	}
 	game := &Game{
-		id:        NewGameId(),
-		CreatedAt: time.Now(),
-		Players:   make(map[PlayerId]*Player),
-		Rows:      rows,
+		Game: share_model.NewGame[*Player](),
+		Rows: rows,
 	}
 	return game
 }
 
-type GameStatus int
+type Game struct {
+	share_model.Game[*Player]
+	Rows map[int]*Row
+}
 
 const (
-	Joinable GameStatus = iota
-	NotJoinable
-	Started
-	Stopped
+	NbPlayer = 2
 )
 
-type Game struct {
-	id        GameId
-	CreatedAt time.Time
-	status    GameStatus
-	WinnerIds []PlayerId
-	Players   map[PlayerId]*Player
-	PlayerIds []PlayerId
-	Round     int
-	Rows      map[int]*Row
+func (g *Game) CanJoin() bool {
+	return g.NbPlayer() < NbPlayer
 }
 
-func (g *Game) Id() GameId {
-	return g.id
-}
-
-func (g *Game) Status() GameStatus {
-	return g.status
-}
-
-func (g *Game) SetStatus(status GameStatus) {
-	g.status = status
-}
-
-func (g *Game) Started() bool {
-	return g.status == Started
-}
-
-func (g *Game) Stopped() bool {
-	return g.status == Stopped
-}
-
-func (g *Game) WithPlayer(player *Player) *Game {
-	g.Players[player.Id()] = player
-	player.SetGameId(g.id)
-	return g
-}
-
-func (g *Game) WithoutPlayer(player *Player) *Game {
-	delete(g.Players, player.Id())
-	player.UnsetGameId()
-	return g
+func (g *Game) CanStart() bool {
+	return g.NbPlayer() == NbPlayer
 }
 
 func (g *Game) UpdateStatus() {
 	if !g.CanJoin() {
-		g.status = NotJoinable
-		for _, player := range g.Players {
-			player.Status = WaitingToStart
+		g.SetStatus(share_model.GameStatus_NotJoinableAndStartable)
+		for _, player := range g.GetPlayers() {
+			player.SetStatus(share_model.PlayerStatus_WaitingToStart)
 		}
 	} else {
-		g.status = Joinable
 		if g.CanStart() {
-			for _, player := range g.Players {
-				player.Status = WaitingToJoinOrStart
+			g.SetStatus(share_model.GameStatus_JoinableAndStartable)
+			for _, player := range g.GetPlayers() {
+				player.SetStatus(share_model.PlayerStatus_WaitingToStart)
 			}
 		} else {
-			for _, player := range g.Players {
-				player.Status = WaitingToJoin
+			g.SetStatus(share_model.GameStatus_JoinableNotStartable)
+			for _, player := range g.GetPlayers() {
+				player.SetStatus(share_model.PlayerStatus_WaitingToJoin)
 			}
 		}
 	}
 }
 
-func (g *Game) CanJoin() bool {
-	return len(g.Players) < 2
-}
-
-func (g *Game) CanStart() bool {
-	return len(g.Players) == 2
-}
-
-func (g *Game) HasPlayer(playerId PlayerId) bool {
-	return list.Contains(g.PlayerIds, playerId)
-}
-
-func (g *Game) GetPlayer(id PlayerId) (*Player, error) {
-	if player, ok := g.Players[id]; ok {
-		return player, nil
-	}
-	return nil, ErrPlayerNotFound
-}
-
-func (g *Game) GetCurrentPlayerId() (PlayerId, error) {
-	if !g.Started() {
-		return "", ErrGameNotStarted
-	}
-	return g.getCurrentPlayerId(), nil
-}
-
-func (g *Game) GetOtherPlayerId(playerId PlayerId) (PlayerId, error) {
-	for id := range g.Players {
-		if id != playerId {
-			return id, nil
-		}
-	}
-	return "", ErrPlayerNotFound
-}
-
-func (g *Game) getCurrentPlayerId() PlayerId {
-	return g.PlayerIds[g.Round%len(g.PlayerIds)]
-}
-
-func (g *Game) GetCurrentPlayer() (*Player, error) {
-	currentPlayerId, err := g.GetCurrentPlayerId()
-	if err != nil {
-		return nil, err
-	}
-	if player, ok := g.Players[currentPlayerId]; ok {
-		return player, err
-	}
-	return nil, ErrPlayerNotFound
-}
-
-func (g *Game) WrapData(data websocket.Data, player *Player) (bool, any) {
+func (g *Game) WrapData(data share_websocket.Data, player *Player) (bool, any) {
 	data = data.With("game", g)
 
 	playerId := player.Id()
 	if playerId == "" {
 		return true, data
 	}
-	player, err := g.GetPlayer(playerId)
-	if err != nil {
+	player, found := g.GetPlayer(playerId)
+	if !found {
 		return false, nil
 	}
 	return true, data.With("player", player)
@@ -174,18 +81,7 @@ func (g *Game) Play(player *Player, x, y int) error {
 	return ErrOutOfRowBound
 }
 
-func (g *Game) SetPlayingPlayer() {
-	currentPlayerId := g.getCurrentPlayerId()
-	for _, player := range g.Players {
-		if currentPlayerId == player.Id() {
-			player.Status = Playing
-		} else {
-			player.Status = WaitingToPlay
-		}
-	}
-}
-
-func (g *Game) HasWinner() (bool, PlayerId) {
+func (g *Game) HasWinner() (bool, share_model.PlayerId) {
 	for x := 1; x <= 3; x++ {
 		same, symbol := g.HasSameSymbol(g.Rows[1].Cells[x], g.Rows[2].Cells[x], g.Rows[3].Cells[x])
 		if same {
@@ -209,8 +105,8 @@ func (g *Game) HasWinner() (bool, PlayerId) {
 	return false, ""
 }
 
-func (g *Game) GetPlayerIdFromRune(symbol rune) PlayerId {
-	for _, player := range g.Players {
+func (g *Game) GetPlayerIdFromRune(symbol rune) share_model.PlayerId {
+	for _, player := range g.GetPlayers() {
 		if player.Symbol == symbol {
 			return player.Id()
 		}
@@ -246,117 +142,80 @@ func (g *Game) IsTie() bool {
 	return true
 }
 
-func (g *Game) Labels() string {
-	labels := make([]string, 0)
-	labels = append(labels, "game")
-	switch g.status {
-	case Joinable:
-		labels = append(labels, "joinable")
-	case NotJoinable:
-		labels = append(labels, "not-joinable")
-	case Started:
-		labels = append(labels, "started")
-	case Stopped:
-		labels = append(labels, "stopped")
-	}
-	return strings.Join(labels, " ")
+func (g *Game) IsStopped() bool {
+	return g.Status().IsStopped()
 }
 
-type PlayerResult int
-
-const (
-	PlayerResult_Undefined PlayerResult = iota
-	PlayerResult_Win
-	PlayerResult_Tie
-	PlayerResult_Loose
-)
-
-func (g *Game) PlayerResult(playerId PlayerId) PlayerResult {
-	if g.status == Stopped {
-		if len(g.WinnerIds) == 0 {
-			return PlayerResult_Tie
-		} else if list.Contains(g.WinnerIds, playerId) {
-			return PlayerResult_Win
-		} else {
-			return PlayerResult_Loose
-		}
-	}
-	return PlayerResult_Undefined
-}
-
-func (g *Game) PlayerLabels(playerId PlayerId) string {
-	if g.status == Stopped {
+func (g *Game) PlayerLabels(playerId share_model.PlayerId) string {
+	if g.IsStopped() {
 		labels := make([]string, 0)
 		labels = append(labels, "player")
-		switch g.PlayerResult(playerId) {
-		case PlayerResult_Win:
-			labels = append(labels, "win")
-		case PlayerResult_Tie:
-			labels = append(labels, "tie")
-		case PlayerResult_Loose:
-			labels = append(labels, "loose")
-		}
+		result := g.PlayerResult(playerId)
+		labels = append(labels, result.LabelSlice()...)
 		return strings.Join(labels, " ")
 	}
-	player, err := g.GetPlayer(playerId)
-	if err != nil {
+	player, found := g.GetPlayer(playerId)
+	if !found {
 		return "error"
 	}
 	return player.Labels()
 }
 
-func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
-	if g.status == Stopped {
-		switch g.PlayerResult(playerId) {
-		case PlayerResult_Win:
+func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
+	if g.IsStopped() {
+		result := g.PlayerResult(playerId)
+		switch {
+		case result.IsWin():
 			return localizer.Loc("YouWin")
-		case PlayerResult_Tie:
+		case result.IsTie():
 			return localizer.Loc("YouTie")
-		case PlayerResult_Loose:
+		case result.IsLoose():
 			return localizer.Loc("YouLoose")
 		}
 		return ""
 	}
-	player, err := g.GetPlayer(playerId)
-	if err != nil {
-		return localizer.Loc("Error", err.Error())
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
 	return player.YourMessage(localizer)
 }
 
-func (g *Game) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
-	if g.status == Stopped {
-		switch g.PlayerResult(playerId) {
-		case PlayerResult_Win:
+func (g *Game) PlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
+	if g.IsStopped() {
+		result := g.PlayerResult(playerId)
+		switch {
+		case result.IsWin():
 			return localizer.Loc("PlayerWin")
-		case PlayerResult_Tie:
+		case result.IsTie():
 			return localizer.Loc("PlayerTie")
-		case PlayerResult_Loose:
+		case result.IsLoose():
 			return localizer.Loc("PlayerLoose")
 		}
 		return ""
 	}
-	player, err := g.GetPlayer(playerId)
-	if err != nil {
-		return localizer.Loc("Error", err.Error())
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
 	return player.Message(localizer)
 }
 
-func (g *Game) PlayerStatusIcon(playerId PlayerId) string {
-	if g.status == Stopped {
-		switch g.PlayerResult(playerId) {
-		case PlayerResult_Win:
+func (g *Game) PlayerStatusIcon(playerId share_model.PlayerId) string {
+	if g.IsStopped() {
+		result := g.PlayerResult(playerId)
+		switch {
+		case result.IsWin():
 			return "icon-win"
-		case PlayerResult_Tie:
+		case result.IsTie():
 			return "icon-tie"
-		case PlayerResult_Loose:
+		case result.IsLoose():
 			return "icon-loose"
 		}
 		return ""
 	}
-	player, err := g.GetPlayer(playerId)
-	if err != nil {
+	player, found := g.GetPlayer(playerId)
+	if !found {
 		return ""
 	}
 	return player.StatusIcon()

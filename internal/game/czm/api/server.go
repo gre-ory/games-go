@@ -86,22 +86,20 @@ func (s *gameServer) WrapData(data websocket.Data, player *model.Player) (bool, 
 func (s *gameServer) onCookie(cookie *share_model.Cookie) {
 	s.logger.Info(fmt.Sprintf("[on-cookie] %s <<< ", model.AppId), zap.Any("cookie", cookie))
 
-	playerId := model.PlayerId(cookie.Id)
+	playerId := cookie.PlayerId()
 	player, err := s.hub.GetPlayer(playerId)
 	if err != nil {
 		s.logger.Error("player NOT found", zap.Any("cookie", cookie))
 		return
 	}
-	player.Avatar = int(cookie.Avatar)
-	player.Name = string(cookie.Name)
-	s.logger.Info(fmt.Sprintf("[on-cookie] language: %s >>> %s", player.Language, cookie.Language))
-	player.Language = string(cookie.Language)
+	player.SetCookie(cookie)
+
 	s.broadcastPlayer(player)
 	s.broadcastUser(cookie)
 }
 
 func (s *gameServer) broadcastUser(cookie *share_model.Cookie) {
-	playerId := model.PlayerId(cookie.Id)
+	playerId := cookie.PlayerId()
 	s.hub.BroadcastToPlayerRender(playerId, nil, s.CookieServer.RenderUser(cookie))
 }
 

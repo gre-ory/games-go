@@ -1,6 +1,42 @@
 package model
 
+import (
+	"fmt"
+	"html/template"
+)
+
 type UserAvatar int
+
+func (a UserAvatar) ExtraSmallHtml() template.HTML {
+	return a.html("xs")
+}
+
+func (a UserAvatar) SmallHtml() template.HTML {
+	return a.html("s")
+}
+
+func (a UserAvatar) MediumHtml() template.HTML {
+	return a.html("m")
+}
+
+func (a UserAvatar) LargeHtml() template.HTML {
+	return a.html("s")
+}
+
+func (a UserAvatar) ExtraLargeHtml() template.HTML {
+	return a.html("xl")
+}
+
+func (a UserAvatar) Html() template.HTML {
+	return a.MediumHtml()
+}
+
+func (a UserAvatar) html(size string) template.HTML {
+	if a != 0 {
+		return template.HTML(fmt.Sprintf("<div class=\"avatar-%d %s\"></div>", a, size))
+	}
+	return ""
+}
 
 func (a UserAvatar) Validate() error {
 	if a == 0 {

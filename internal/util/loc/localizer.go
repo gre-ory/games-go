@@ -20,7 +20,7 @@ type Localizer interface {
 // //////////////////////////////////////////////////
 // constructor
 
-func NewLocalizer(appId string, lang string, logger *zap.Logger) Localizer {
+func NewLocalizer(appId AppId, lang Language, logger *zap.Logger) Localizer {
 	app := GetApp(appId)
 	localizers := make([]*i18n.Localizer, 2)
 	if localizer := app.GetLocalizer(lang); localizer != nil {
@@ -41,8 +41,8 @@ func NewLocalizer(appId string, lang string, logger *zap.Logger) Localizer {
 // localizer
 
 type localizer struct {
-	AppId      string
-	Language   string
+	AppId      AppId
+	Language   Language
 	logger     *zap.Logger
 	localizers []*i18n.Localizer
 }

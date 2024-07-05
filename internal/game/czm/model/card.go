@@ -51,18 +51,23 @@ func CardColorFromString(value rune) CardColor {
 	panic(fmt.Sprintf("invalid color: %v", value))
 }
 
-func (c CardColor) LabelSlice() []string {
-	labels := []string{}
+func (c CardColor) LabelColor() string {
 	switch c {
 	case CardColor_Red:
-		labels = append(labels, "red")
+		return "red"
 	case CardColor_Green:
-		labels = append(labels, "green")
+		return "green"
 	case CardColor_Blue:
-		labels = append(labels, "blue")
+		return "blue"
 	case CardColor_Yellow:
-		labels = append(labels, "yellow")
+		return "yellow"
 	}
+	return ""
+}
+
+func (c CardColor) LabelSlice() []string {
+	labels := []string{}
+	labels = append(labels, c.LabelColor())
 	return labels
 }
 

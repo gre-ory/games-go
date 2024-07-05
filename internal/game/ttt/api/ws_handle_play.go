@@ -20,7 +20,7 @@ func (s *gameServer) HandlePlay(player *model.Player, message JsonMessage) error
 		return model.ErrMissingPlayY
 	}
 
-	game, err := s.service.PlayGame(player, playX, playY)
+	game, err := s.service.PlayPlayerGame(player, playX, playY)
 	if err != nil {
 		return err
 	}

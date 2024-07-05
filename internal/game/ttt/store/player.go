@@ -1,17 +1,15 @@
 package store
 
 import (
-	util_store "github.com/gre-ory/games-go/internal/util/store"
+	share_store "github.com/gre-ory/games-go/internal/game/share/store"
 
 	"github.com/gre-ory/games-go/internal/game/ttt/model"
 )
 
 type PlayerStore interface {
-	Set(player *model.Player) error
-	Get(id model.PlayerId) (*model.Player, error)
-	Delete(id model.PlayerId) error
+	share_store.PlayerStore[*model.Player]
 }
 
 func NewPlayerStore() PlayerStore {
-	return util_store.NewPlayerMemoryStore[model.PlayerId, *model.Player]()
+	return share_store.NewPlayerMemoryStore[*model.Player]()
 }

@@ -3,12 +3,15 @@ package api
 import (
 	"context"
 
-	"github.com/gre-ory/games-go/internal/game/ttt/model"
 	"github.com/gre-ory/games-go/internal/util"
+
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+
+	"github.com/gre-ory/games-go/internal/game/ttt/model"
 )
 
-func (s *gameServer) extractPathGameId(ctx context.Context) (model.GameId, error) {
-	gameId := model.GameId(util.ExtractPathParameter(ctx, "game_id"))
+func (s *gameServer) extractPathGameId(ctx context.Context) (share_model.GameId, error) {
+	gameId := share_model.GameId(util.ExtractPathParameter(ctx, "game_id"))
 	if gameId == "" {
 		return "", model.ErrMissingGameId
 	}

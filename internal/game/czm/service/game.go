@@ -30,15 +30,15 @@ type GameService interface {
 
 func NewGameService(logger *zap.Logger, gameStore store.GameStore, playerStore store.PlayerStore) GameService {
 	return &gameService{
-		GameService: share_service.NewGameService(logger, model.AppId, gameStore),
-		logger:      logger,
-		gameStore:   gameStore,
-		playerStore: playerStore,
+		GameService_bak: share_service.NewGameService_bak(logger, model.AppId, gameStore),
+		logger:          logger,
+		gameStore:       gameStore,
+		playerStore:     playerStore,
 	}
 }
 
 type gameService struct {
-	share_service.GameService[model.PlayerId, model.GameId, *model.Player, *model.Game]
+	share_service.GameService_bak[model.PlayerId, model.GameId, *model.Player, *model.Game]
 	logger      *zap.Logger
 	gameStore   store.GameStore
 	playerStore store.PlayerStore

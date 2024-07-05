@@ -12,7 +12,7 @@ type LeaveGameServer[PlayerT any] interface {
 }
 
 type LeaveGameService[PlayerT any, GameT any] interface {
-	LeaveGame(player PlayerT) (GameT, error)
+	LeavePlayerGame(player PlayerT) (GameT, error)
 }
 
 type OnLeaveGame[PlayerT any, GameT any] func(player PlayerT, game GameT)
@@ -34,7 +34,7 @@ type leaveGameServer[PlayerT any, GameT any] struct {
 func (s *leaveGameServer[PlayerT, GameT]) HandleLeaveGame(player PlayerT) error {
 	s.logger.Info("[ws] leave_game")
 
-	game, err := s.service.LeaveGame(player)
+	game, err := s.service.LeavePlayerGame(player)
 	if err != nil {
 		return err
 	}

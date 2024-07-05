@@ -3,22 +3,22 @@ package websocket
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	ws "github.com/gorilla/websocket"
 	"go.uber.org/zap"
+
+	"github.com/gre-ory/games-go/internal/game/share/model"
 )
 
-type Player[IdT comparable, GameIdT comparable] interface {
-	HasId() bool
-	Id() IdT
+// //////////////////////////////////////////////////
+// websocket player
 
-	HasGameId() bool
-	GameId() GameIdT
-	SetGameId(gameId GameIdT)
-	UnsetGameId()
+type Player interface {
+	model.Player
+
 	CanJoin() bool
 
 	ConnectSocket(w http.ResponseWriter, r *http.Request) error
@@ -26,11 +26,14 @@ type Player[IdT comparable, GameIdT comparable] interface {
 	// WriteSocket()
 
 	IsActive() bool
-	Activate(logger *zap.Logger)
-	Deactivate(logger *zap.Logger)
+	Activate()
+	Deactivate()
 
 	Send(bytes []byte)
-	Close(logger *zap.Logger)
+	Close()
+
+	LabelSlice() []string
+	Labels() string
 }
 
 const (
@@ -52,16 +55,16 @@ var upgrader = ws.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func NewPlayer[IdT comparable, GameIdT comparable](
+func NewPlayer(
 	logger *zap.Logger,
-	id IdT,
-	onMessage func(id IdT, message []byte),
-	onUpdate func(id IdT),
-	onClose func(id IdT),
-) Player[IdT, GameIdT] {
-	return &player[IdT, GameIdT]{
-		id:          id,
-		logger:      logger,
+	id model.PlayerId,
+	onMessage func(id model.PlayerId, message []byte),
+	onUpdate func(id model.PlayerId),
+	onClose func(id model.PlayerId),
+) Player {
+	return &player{
+		Player:      model.NewPlayer(id),
+		logger:      logger.With(zap.String("player", string(id))),
 		onMessage:   onMessage,
 		onUpdate:    onUpdate,
 		onClose:     onClose,
@@ -72,18 +75,37 @@ func NewPlayer[IdT comparable, GameIdT comparable](
 	}
 }
 
-type player[IdT comparable, GameIdT comparable] struct {
+func NewPlayerFromCookie(
+	logger *zap.Logger,
+	cookie *model.Cookie,
+	onMessage func(id model.PlayerId, message []byte),
+	onUpdate func(id model.PlayerId),
+	onClose func(id model.PlayerId),
+) Player {
+	return &player{
+		Player:      model.NewPlayerFromCookie(cookie),
+		logger:      logger.With(zap.String("player", string(cookie.Id))),
+		onMessage:   onMessage,
+		onUpdate:    onUpdate,
+		onClose:     onClose,
+		readClosed:  true,
+		writeClosed: true,
+		closing:     false,
+		closed:      true,
+	}
+}
+
+type player struct {
+	model.Player
 	sync.RWMutex
-	id               IdT
-	gameId           GameIdT
 	logger           *zap.Logger
 	active           bool
 	send             chan []byte
 	closeMessageSent chan struct{}
 	pingTicker       *time.Ticker
-	onMessage        func(id IdT, message []byte)
-	onUpdate         func(id IdT)
-	onClose          func(id IdT)
+	onMessage        func(id model.PlayerId, message []byte)
+	onUpdate         func(id model.PlayerId)
+	onClose          func(id model.PlayerId)
 	conn             *ws.Conn
 	readClosed       bool
 	writeClosed      bool
@@ -91,55 +113,26 @@ type player[IdT comparable, GameIdT comparable] struct {
 	closed           bool
 }
 
-func (p *player[IdT, GameIdT]) HasId() bool {
-	var empty IdT
-	return p.id != empty
-}
-
-func (p *player[IdT, GameIdT]) Id() IdT {
-	return p.id
-}
-
-func (p *player[IdT, GameIdT]) HasGameId() bool {
-	var empty GameIdT
-	return p.gameId != empty
-}
-
-func (p *player[IdT, GameIdT]) GameId() GameIdT {
-	return p.gameId
-}
-
-func (p *player[IdT, GameIdT]) SetGameId(gameId GameIdT) {
-	p.gameId = gameId
-}
-
-func (p *player[IdT, GameIdT]) UnsetGameId() {
-	var empty GameIdT
-	p.gameId = empty
-}
-
-func (p *player[IdT, GameIdT]) CanJoin() bool {
+func (p *player) CanJoin() bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.active && p.HasId() && !p.HasGameId()
 }
 
-func (p *player[IdT, GameIdT]) ConnectSocket(w http.ResponseWriter, r *http.Request) error {
+func (p *player) ConnectSocket(w http.ResponseWriter, r *http.Request) error {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}
 
-	logger := p.logger.With(zap.Any("player", p.Id()))
-
-	p.Open(logger, conn)
-	go p.WriteSocket(logger)
-	go p.ReadSocket(logger)
+	p.Open(conn)
+	go p.WriteSocket()
+	go p.ReadSocket()
 	return nil
 }
 
-func (p *player[IdT, GameIdT]) ReadSocket(logger *zap.Logger) {
-	logger = logger.With(zap.String("thread", "read-socket"))
+func (p *player) ReadSocket() {
+	logger := p.logger.With(zap.String("routine", "read-socket"))
 
 	defer func() {
 		r := recover()
@@ -155,7 +148,7 @@ func (p *player[IdT, GameIdT]) ReadSocket(logger *zap.Logger) {
 		p.Lock()
 		p.readClosed = true
 		p.Unlock()
-		p.Close(logger)
+		p.Close()
 	}()
 	logger.Info(fmt.Sprintf("[ws] player %v → read OPEN", p.Id()))
 
@@ -182,13 +175,13 @@ func (p *player[IdT, GameIdT]) ReadSocket(logger *zap.Logger) {
 			logger.Info(fmt.Sprintf("[ws] player %v ← receive message ← %s", p.Id(), message))
 		}
 		if p.onMessage != nil {
-			p.onMessage(p.id, message)
+			p.onMessage(p.Id(), message)
 		}
 	}
 }
 
-func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
-	logger = logger.With(zap.String("thread", "write-socket"))
+func (p *player) WriteSocket() {
+	logger := p.logger.With(zap.String("routine", "write-socket"))
 
 	defer func() {
 		r := recover()
@@ -204,7 +197,7 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 		p.Lock()
 		p.writeClosed = true
 		p.Unlock()
-		p.Close(logger)
+		p.Close()
 	}()
 	logger.Info(fmt.Sprintf("[ws] player %v → write OPEN", p.Id()))
 
@@ -213,13 +206,13 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 		case message, ok := <-p.send:
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				p.conn.WriteMessage(ws.CloseMessage, []byte{})
 				logger.Info(fmt.Sprintf("[ws] player %v → send channel CLOSED → CLOSE message sent → BREAK", p.Id()))
 				p.closeMessageSent <- struct{}{}
 				return
 			}
 
-			w, err := p.conn.NextWriter(websocket.TextMessage)
+			w, err := p.conn.NextWriter(ws.TextMessage)
 			if err != nil {
 				logger.Info(fmt.Sprintf("[ws] player %v → send message: ERROR %q → BREAK", p.Id(), err.Error()))
 				return
@@ -235,7 +228,7 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 			}
 		case <-p.pingTicker.C:
 			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if err := p.conn.WriteMessage(ws.PingMessage, nil); err != nil {
 				logger.Info(fmt.Sprintf("[ws] player %v → ping: ERROR %q → BREAK", p.Id(), err.Error()))
 				return
 			}
@@ -246,7 +239,7 @@ func (p *player[IdT, GameIdT]) WriteSocket(logger *zap.Logger) {
 	}
 }
 
-func (p *player[IdT, GameIdT]) Send(bytes []byte) {
+func (p *player) Send(bytes []byte) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -255,34 +248,35 @@ func (p *player[IdT, GameIdT]) Send(bytes []byte) {
 	}
 }
 
-func (p *player[IdT, GameIdT]) IsReadClosed() bool {
+func (p *player) IsReadClosed() bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.readClosed
 }
 
-func (p *player[IdT, GameIdT]) IsWriteClosed() bool {
+func (p *player) IsWriteClosed() bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.writeClosed
 }
 
-func (p *player[IdT, GameIdT]) IsClosing() bool {
+func (p *player) IsClosing() bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.closing
 }
 
-func (p *player[IdT, GameIdT]) IsClosed() bool {
+func (p *player) IsClosed() bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.closed
 }
 
-func (p *player[IdT, GameIdT]) Open(logger *zap.Logger, conn *ws.Conn) {
+func (p *player) Open(conn *ws.Conn) {
+	logger := p.logger.With(zap.String("action", "open"))
 	if !p.IsClosed() {
 		logger.Info(fmt.Sprintf("[ws] player %v → NOT closed → Close", p.Id()))
-		p.Close(logger)
+		p.Close()
 	}
 
 	p.Lock()
@@ -297,10 +291,11 @@ func (p *player[IdT, GameIdT]) Open(logger *zap.Logger, conn *ws.Conn) {
 	p.Unlock()
 
 	logger.Info(fmt.Sprintf("[ws] player %v → OPEN -> ACTIVATE", p.Id()))
-	p.Activate(logger)
+	p.Activate()
 }
 
-func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
+func (p *player) Close() {
+	logger := p.logger.With(zap.String("action", "close"))
 	if p.IsClosed() {
 		logger.Info(fmt.Sprintf("[ws] player %v → ALREADY closed", p.Id()))
 		return
@@ -315,7 +310,7 @@ func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
 	p.Unlock()
 
 	if p.onClose != nil {
-		p.onClose(p.id)
+		p.onClose(p.Id())
 	}
 
 	logger.Info(fmt.Sprintf("[ws] player %v → stop ping ticker", p.Id()))
@@ -346,17 +341,18 @@ func (p *player[IdT, GameIdT]) Close(logger *zap.Logger) {
 	p.Unlock()
 
 	logger.Info(fmt.Sprintf("[ws] player %v → CLOSED → DEACTIVATE", p.Id()))
-	p.Deactivate(logger)
+	p.Deactivate()
 }
 
-func (p *player[IdT, GameIdT]) IsActive() bool {
+func (p *player) IsActive() bool {
 	p.RLock()
 	defer p.RUnlock()
 
 	return p.active
 }
 
-func (p *player[IdT, GameIdT]) Activate(logger *zap.Logger) {
+func (p *player) Activate() {
+	logger := p.logger.With(zap.String("action", "activate"))
 	if p.IsActive() {
 		return
 	}
@@ -367,13 +363,14 @@ func (p *player[IdT, GameIdT]) Activate(logger *zap.Logger) {
 
 	if p.onUpdate != nil {
 		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE → callback", p.Id()))
-		p.onUpdate(p.id)
+		p.onUpdate(p.Id())
 	} else {
 		logger.Info(fmt.Sprintf("[ws] player %v → ACTIVE", p.Id()))
 	}
 }
 
-func (p *player[IdT, GameIdT]) Deactivate(logger *zap.Logger) {
+func (p *player) Deactivate() {
+	logger := p.logger.With(zap.String("action", "deactivate"))
 	if !p.IsActive() {
 		return
 	}
@@ -384,8 +381,23 @@ func (p *player[IdT, GameIdT]) Deactivate(logger *zap.Logger) {
 
 	if p.onUpdate != nil {
 		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE → callback", p.Id()))
-		p.onUpdate(p.id)
+		p.onUpdate(p.Id())
 	} else {
 		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.Id()))
 	}
+}
+
+func (p *player) LabelSlice() []string {
+	labels := make([]string, 0)
+	labels = append(labels, "player")
+	if p.IsActive() {
+		labels = append(labels, p.Status().LabelSlice()...)
+	} else {
+		labels = append(labels, "disconnected")
+	}
+	return labels
+}
+
+func (p *player) Labels() string {
+	return strings.Join(p.LabelSlice(), " ")
 }

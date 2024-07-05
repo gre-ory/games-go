@@ -7,15 +7,17 @@ import (
 // //////////////////////////////////////////////////
 // global
 
+type AppId string
+
 var (
-	apps = map[string]App{}
+	apps = map[AppId]App{}
 )
 
 func registerApp(app App) {
 	apps[app.Id()] = app
 }
 
-func GetApp(id string) App {
+func GetApp(id AppId) App {
 	if app, ok := apps[id]; ok {
 		return app
 	}
@@ -27,41 +29,41 @@ func GetApp(id string) App {
 // global
 
 type App interface {
-	Id() string
-	SetDefaultLanguage(lang string)
-	AddLocalizer(lang string, localizer *i18n.Localizer)
-	GetLocalizer(lang string) *i18n.Localizer
+	Id() AppId
+	SetDefaultLanguage(lang Language)
+	AddLocalizer(lang Language, localizer *i18n.Localizer)
+	GetLocalizer(lang Language) *i18n.Localizer
 	GetDefaultLocalizer() *i18n.Localizer
 }
 
-func NewApp(id string) App {
+func NewApp(id AppId) App {
 	app := &app{
-		ID:         id,
-		localizers: map[string]*i18n.Localizer{},
+		id:         id,
+		localizers: map[Language]*i18n.Localizer{},
 	}
 	registerApp(app)
 	return app
 }
 
 type app struct {
-	ID              string
-	defaultLanguage *string
-	localizers      map[string]*i18n.Localizer
+	id              AppId
+	defaultLanguage *Language
+	localizers      map[Language]*i18n.Localizer
 }
 
-func (a *app) Id() string {
-	return a.ID
+func (a *app) Id() AppId {
+	return a.id
 }
 
-func (a *app) SetDefaultLanguage(lang string) {
+func (a *app) SetDefaultLanguage(lang Language) {
 	a.defaultLanguage = &lang
 }
 
-func (a *app) AddLocalizer(lang string, localizer *i18n.Localizer) {
+func (a *app) AddLocalizer(lang Language, localizer *i18n.Localizer) {
 	a.localizers[lang] = localizer
 }
 
-func (a *app) GetLocalizer(lang string) *i18n.Localizer {
+func (a *app) GetLocalizer(lang Language) *i18n.Localizer {
 	if lang == "" {
 		return nil
 	}

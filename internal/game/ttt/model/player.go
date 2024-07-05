@@ -1,82 +1,35 @@
 package model
 
 import (
-	"fmt"
 	"html/template"
-	"strings"
 
-	"github.com/gre-ory/games-go/internal/util"
 	"github.com/gre-ory/games-go/internal/util/loc"
-	"github.com/gre-ory/games-go/internal/util/websocket"
+
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 )
 
-type PlayerId string
-
-func NewPlayerId() PlayerId {
-	return PlayerId(util.GeneratePlayerId())
-}
-
-func NewPlayer(player websocket.Player[PlayerId, GameId], avatar int, name string, language string) *Player {
+func NewPlayer(player share_websocket.Player) *Player {
 	return &Player{
-		Player:   player,
-		Avatar:   avatar,
-		Name:     name,
-		Language: language,
-		Status:   WaitingToJoin,
+		Player: player,
 	}
 }
 
-type PlayerStatus int
-
-const (
-	WaitingToJoin PlayerStatus = iota
-	WaitingToJoinOrStart
-	WaitingToStart
-	WaitingToPlay
-	Playing
-)
-
 type Player struct {
-	websocket.Player[PlayerId, GameId]
-	Avatar   int
-	Name     string
-	Language string
-	Symbol   rune
-	Status   PlayerStatus
+	share_websocket.Player
+	Symbol rune
 }
 
-func (p *Player) WithSymbol(symbol rune) *Player {
+func (p *Player) SetSymbol(symbol rune) {
 	p.Symbol = symbol
-	return p
 }
 
 func (p *Player) CanJoin() bool {
-	return p.Player.CanJoin() && (p.Status == WaitingToJoin)
+	return p.Player.CanJoin() && p.Status().IsWaitingToJoin()
 }
 
 func (p *Player) Playing() bool {
-	return p.Status == Playing
-}
-
-func (p *Player) ExtraSmallAvatarHtml() template.HTML {
-	if p.Avatar != 0 {
-		return template.HTML(fmt.Sprintf("<div class=\"avatar-%d xs\"></div>", p.Avatar))
-	}
-	return ""
-}
-
-func (p *Player) SmallAvatarHtml() template.HTML {
-	if p.Avatar != 0 {
-		return template.HTML(fmt.Sprintf("<div class=\"avatar-%d s\"></div>", p.Avatar))
-	}
-	return ""
-}
-
-func (p *Player) AvatarHtml() template.HTML {
-	if p.Avatar != 0 {
-		return template.HTML(fmt.Sprintf("<div class=\"avatar-%d m\"></div>", p.Avatar))
-	}
-	return ""
+	return p.Status().IsPlaying()
 }
 
 func (p *Player) IconHtml() template.HTML {
@@ -89,30 +42,16 @@ func (p *Player) IconHtml() template.HTML {
 	return ""
 }
 
-func (p *Player) Labels() string {
+func (p *Player) LabelSlice() []string {
 	labels := make([]string, 0)
-	labels = append(labels, "player")
+	labels = append(labels, p.Player.LabelSlice()...)
 	switch p.Symbol {
 	case PLAYER_ONE_SYMBOL:
 		labels = append(labels, "symbol-1")
 	case PLAYER_TWO_SYMBOL:
 		labels = append(labels, "symbol-2")
 	}
-	if p.IsActive() {
-		switch p.Status {
-		case WaitingToJoin:
-			labels = append(labels, "waiting-to-join")
-		case WaitingToStart:
-			labels = append(labels, "waiting-to-start")
-		case WaitingToPlay:
-			labels = append(labels, "waiting-to-play")
-		case Playing:
-			labels = append(labels, "playing")
-		}
-	} else {
-		labels = append(labels, "disconnected")
-	}
-	return strings.Join(labels, " ")
+	return labels
 }
 
 func (p *Player) SymbolIcon() string {
@@ -127,14 +66,14 @@ func (p *Player) SymbolIcon() string {
 
 func (p *Player) YourMessage(localizer loc.Localizer) template.HTML {
 	if p.IsActive() {
-		switch p.Status {
-		case WaitingToJoin:
+		switch p.Status() {
+		case share_model.PlayerStatus_WaitingToJoin:
 			return localizer.Loc("YouWaitingToJoin")
-		case WaitingToStart:
+		case share_model.PlayerStatus_WaitingToStart:
 			return localizer.Loc("YouWaitingToStart")
-		case WaitingToPlay:
+		case share_model.PlayerStatus_WaitingToPlay:
 			return localizer.Loc("YouWaitingToPlay")
-		case Playing:
+		case share_model.PlayerStatus_Playing:
 			return localizer.Loc("YouPlaying", p.IconHtml())
 		}
 	} else {
@@ -145,14 +84,14 @@ func (p *Player) YourMessage(localizer loc.Localizer) template.HTML {
 
 func (p *Player) Message(localizer loc.Localizer) template.HTML {
 	if p.IsActive() {
-		switch p.Status {
-		case WaitingToJoin:
+		switch p.Status() {
+		case share_model.PlayerStatus_WaitingToJoin:
 			return localizer.Loc("PlayerWaitingToJoin")
-		case WaitingToStart:
+		case share_model.PlayerStatus_WaitingToStart:
 			return localizer.Loc("PlayerWaitingToStart")
-		case WaitingToPlay:
+		case share_model.PlayerStatus_WaitingToPlay:
 			return localizer.Loc("PlayerWaitingToPlay")
-		case Playing:
+		case share_model.PlayerStatus_Playing:
 			return localizer.Loc("PlayerPlaying", p.IconHtml())
 		}
 	} else {
@@ -162,12 +101,12 @@ func (p *Player) Message(localizer loc.Localizer) template.HTML {
 }
 
 func (p *Player) StatusIcon() string {
-	switch p.Status {
-	case WaitingToJoin,
-		WaitingToStart,
-		WaitingToPlay:
+	switch p.Status() {
+	case share_model.PlayerStatus_WaitingToJoin,
+		share_model.PlayerStatus_WaitingToStart,
+		share_model.PlayerStatus_WaitingToPlay:
 		return "icon-pause"
-	case Playing:
+	case share_model.PlayerStatus_Playing:
 		return "icon-play"
 	}
 	return ""

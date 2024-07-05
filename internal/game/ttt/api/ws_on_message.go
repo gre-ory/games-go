@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gre-ory/games-go/internal/game/ttt/model"
 	"go.uber.org/zap"
+
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+
+	"github.com/gre-ory/games-go/internal/game/ttt/model"
 )
 
-func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
+func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 
 	var jsonMessage JsonMessage
 	var player *model.Player
@@ -48,7 +51,7 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 		case "create-game":
 			err = s.HandleCreateGame(player)
 		case "join-game":
-			gameId := model.GameId(jsonMessage.GameId)
+			gameId := share_model.GameId(jsonMessage.GameId)
 			err = s.HandleJoinGame(player, gameId)
 		case "start-game":
 			err = s.HandleStartGame(player)

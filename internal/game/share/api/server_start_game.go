@@ -12,7 +12,7 @@ type StartGameServer[PlayerT any] interface {
 }
 
 type StartGameService[PlayerT any, GameT any] interface {
-	StartGame(player PlayerT) (GameT, error)
+	StartPlayerGame(player PlayerT) (GameT, error)
 }
 
 type OnStartGame[PlayerT any, GameT any] func(player PlayerT, game GameT)
@@ -34,7 +34,7 @@ type startGameServer[PlayerT any, GameT any] struct {
 func (s *startGameServer[PlayerT, GameT]) HandleStartGame(player PlayerT) error {
 	s.logger.Info("[ws] start_game")
 
-	game, err := s.service.StartGame(player)
+	game, err := s.service.StartPlayerGame(player)
 	if err != nil {
 		return err
 	}

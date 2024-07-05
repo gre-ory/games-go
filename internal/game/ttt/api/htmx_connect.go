@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	share_model "github.com/gre-ory/games-go/internal/game/share/model"
-	"github.com/gre-ory/games-go/internal/game/ttt/model"
-	"github.com/gre-ory/games-go/internal/util/websocket"
 	"go.uber.org/zap"
+
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
+
+	"github.com/gre-ory/games-go/internal/game/ttt/model"
 )
 
 func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
@@ -27,24 +29,22 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 			s.logger.Info("[api] no valid cookie >>> STOP", zap.Error(err))
 			break
 		}
-		playerId := model.PlayerId(cookie.Id)
-		playerAvatar := int(cookie.Avatar)
-		playerName := string(cookie.Name)
-		playerLanguage := string(cookie.Language)
-		s.logger.Info(fmt.Sprintf("[api] cookie %s - %s >>> getting player...", playerId, playerName), zap.Any("cookie", cookie))
+		playerId := cookie.PlayerId()
+		s.logger.Info(fmt.Sprintf("[api] cookie %s >>> getting player...", playerId), zap.Any("cookie", cookie))
 
 		player, err = s.hub.GetPlayer(playerId)
 		if err == nil {
 			s.logger.Info(fmt.Sprintf("[api] player %s already exists", playerId), zap.Any("player", player))
 		} else {
-			if !errors.Is(err, websocket.ErrPlayerNotFound) {
+			if !errors.Is(err, share_model.ErrPlayerNotFound) {
 				s.logger.Info(fmt.Sprintf("[api] player %s not found >>> ERROR", playerId), zap.Error(err))
 				break
 			}
 			s.logger.Info(fmt.Sprintf("[api] player %s not found >>> create a new one", playerId))
 			// wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, s.hub.UnregisterPlayer)
-			wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, nil)
-			player = model.NewPlayer(wsPlayer, playerAvatar, playerName, playerLanguage)
+			ws_player := share_websocket.NewPlayerFromCookie(s.logger, cookie, s.onMessage, s.onPlayerUpdate, nil)
+			player = model.NewPlayer(ws_player)
+
 			s.hub.RegisterPlayer(player)
 		}
 

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gre-ory/games-go/internal/util"
 	"github.com/gre-ory/games-go/internal/util/list"
 	"github.com/gre-ory/games-go/internal/util/loc"
 	"github.com/gre-ory/games-go/internal/util/websocket"
@@ -15,12 +14,6 @@ const (
 	Game_MinPlayer = 2
 	Game_MaxPlayer = 4
 )
-
-type GameId string
-
-func NewGameId() GameId {
-	return GameId(util.GenerateGameId())
-}
 
 func NewGame() *Game {
 	game := &Game{
@@ -73,6 +66,7 @@ type Game struct {
 	Missions              [NbMission]Mission
 	DiscardMissionDeck    MissionDeck
 	ValidatedMissionIndex int
+	Medal                 Medal
 }
 
 func (g *Game) Id() GameId {
