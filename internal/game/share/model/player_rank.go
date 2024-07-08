@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type PlayerRank int
 
@@ -32,13 +35,15 @@ func (s PlayerRank) String() string {
 	}
 }
 
-func (s PlayerRank) Labels() []string {
+func (s PlayerRank) LabelSlice() []string {
 	var labels []string
-	if s.IsValid() {
-		labels = append(labels, "player-rank")
-		labels = append(labels, s.String())
-	}
+	labels = append(labels, "player-rank")
+	labels = append(labels, s.String())
 	return labels
+}
+
+func (s PlayerRank) Labels() string {
+	return strings.Join(s.LabelSlice(), " ")
 }
 
 func (s PlayerRank) HasMedal() bool {
@@ -57,7 +62,7 @@ func (s PlayerRank) MedalString() string {
 	}
 }
 
-func (s PlayerRank) MedalLabels() []string {
+func (s PlayerRank) MedalLabelSlice() []string {
 	var labels []string
 	if s.HasMedal() {
 		labels = append(labels, "player-medal")

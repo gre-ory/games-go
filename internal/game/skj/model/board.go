@@ -11,27 +11,25 @@ const (
 )
 
 type PlayerBoard struct {
-	columns [NbColumn]PlayerColumn
+	columns []*PlayerColumn
 }
 
-func NewPlayerBoard(cards ...Card) PlayerBoard {
-	if len(cards) != NbRow*NbColumn {
-		panic(ErrInvalidNumberOfCard)
-	}
-	board := PlayerBoard{
-		columns: [NbColumn]PlayerColumn{},
-	}
-	for columnIndex := 0; columnIndex < NbColumn; columnIndex++ {
-		board.columns[columnIndex] = NewPlayerColumn(columnIndex+1, cards[columnIndex*NbRow:(columnIndex+1)*NbRow]...)
+func NewPlayerBoard() *PlayerBoard {
+	board := &PlayerBoard{
+		columns: make([]*PlayerColumn, 0),
 	}
 	return board
 }
 
-func (board PlayerBoard) Columns() [NbColumn]PlayerColumn {
+func (board *PlayerBoard) AddColumn(column *PlayerColumn) {
+	board.columns = append(board.columns, column)
+}
+
+func (board *PlayerBoard) Columns() []*PlayerColumn {
 	return board.columns
 }
 
-func (board PlayerBoard) IsFlipped() bool {
+func (board *PlayerBoard) IsFlipped() bool {
 	for _, column := range board.columns {
 		if !column.IsFlipped() {
 			return false
@@ -40,7 +38,7 @@ func (board PlayerBoard) IsFlipped() bool {
 	return true
 }
 
-func (board PlayerBoard) Total() int {
+func (board *PlayerBoard) Total() int {
 	result := 0
 	for _, column := range board.columns {
 		result += column.Total()
@@ -48,14 +46,14 @@ func (board PlayerBoard) Total() int {
 	return result
 }
 
-func (board *PlayerBoard) Flip(column, row int) error {
-	if column < 0 || column >= NbColumn {
+func (board *PlayerBoard) Flip(columnIndex, rowIndex int) error {
+	if columnIndex < 0 || columnIndex >= NbColumn {
 		return ErrInvalidColumn
 	}
-	return board.columns[column].Flip(row)
+	return board.columns[columnIndex].Flip(rowIndex)
 }
 
-func (board PlayerBoard) Labels() string {
+func (board *PlayerBoard) Labels() string {
 	labels := make([]string, 0)
 	labels = append(labels, "board")
 	if board.IsFlipped() {
@@ -69,28 +67,26 @@ func (board PlayerBoard) Labels() string {
 
 type PlayerColumn struct {
 	columnNumber int
-	cells        [NbRow]PlayerCell
+	cells        []*PlayerCell
 }
 
-func NewPlayerColumn(columnNumber int, cards ...Card) PlayerColumn {
-	if len(cards) != NbRow {
-		panic(ErrInvalidNumberOfRow)
-	}
-	column := PlayerColumn{
+func NewPlayerColumn(columnNumber int) *PlayerColumn {
+	column := &PlayerColumn{
 		columnNumber: columnNumber,
-		cells:        [NbRow]PlayerCell{},
-	}
-	for rowIndex := 0; rowIndex < NbRow; rowIndex++ {
-		column.cells[rowIndex] = NewPlayerCell(columnNumber, rowIndex+1, cards[rowIndex])
+		cells:        make([]*PlayerCell, 0),
 	}
 	return column
 }
 
-func (column PlayerColumn) Cells() [NbRow]PlayerCell {
+func (column *PlayerColumn) AddCell(cell *PlayerCell) {
+	column.cells = append(column.cells, cell)
+}
+
+func (column *PlayerColumn) Cells() []*PlayerCell {
 	return column.cells
 }
 
-func (column PlayerColumn) IsSkyjo() bool {
+func (column *PlayerColumn) IsSkyjo() bool {
 	firstCell := column.cells[0]
 	for _, cell := range column.cells {
 		if !cell.IsFlipped() {
@@ -103,7 +99,7 @@ func (column PlayerColumn) IsSkyjo() bool {
 	return true
 }
 
-func (column PlayerColumn) IsFlipped() bool {
+func (column *PlayerColumn) IsFlipped() bool {
 	for _, cell := range column.cells {
 		if !cell.IsFlipped() {
 			return false
@@ -112,14 +108,14 @@ func (column PlayerColumn) IsFlipped() bool {
 	return true
 }
 
-func (column *PlayerColumn) Flip(row int) error {
-	if row < 0 || row >= NbRow {
+func (column *PlayerColumn) Flip(rowIndex int) error {
+	if rowIndex < 0 || rowIndex >= NbRow {
 		return ErrInvalidRow
 	}
-	return column.cells[row].Flip()
+	return column.cells[rowIndex].Flip()
 }
 
-func (column PlayerColumn) Total() int {
+func (column *PlayerColumn) Total() int {
 	if column.IsSkyjo() {
 		return 0
 	}
@@ -130,7 +126,7 @@ func (column PlayerColumn) Total() int {
 	return result
 }
 
-func (column PlayerColumn) Labels() string {
+func (column *PlayerColumn) Labels() string {
 	labels := make([]string, 0)
 	labels = append(labels, "column")
 	if column.IsFlipped() {
@@ -152,8 +148,8 @@ type PlayerCell struct {
 	flipped      bool
 }
 
-func NewPlayerCell(columnNumber, rowNumber int, card Card) PlayerCell {
-	return PlayerCell{
+func NewPlayerCell(columnNumber, rowNumber int, card Card) *PlayerCell {
+	return &PlayerCell{
 		columnNumber: columnNumber,
 		rowNumber:    rowNumber,
 		card:         card,
@@ -161,27 +157,27 @@ func NewPlayerCell(columnNumber, rowNumber int, card Card) PlayerCell {
 	}
 }
 
-func (cell PlayerCell) Column() int {
+func (cell *PlayerCell) Column() int {
 	return cell.columnNumber
 }
 
-func (cell PlayerCell) Row() int {
+func (cell *PlayerCell) Row() int {
 	return cell.rowNumber
 }
 
-func (cell PlayerCell) Card() int {
+func (cell *PlayerCell) Card() int {
 	return int(cell.card)
 }
 
-func (cell PlayerCell) IsVisible() bool {
+func (cell *PlayerCell) IsVisible() bool {
 	return !cell.flipped
 }
 
-func (cell PlayerCell) IsFlipped() bool {
+func (cell *PlayerCell) IsFlipped() bool {
 	return cell.flipped
 }
 
-func (cell PlayerCell) CanFlip() bool {
+func (cell *PlayerCell) CanFlip() bool {
 	return !cell.flipped
 }
 
@@ -193,14 +189,14 @@ func (cell *PlayerCell) Flip() error {
 	return nil
 }
 
-func (cell PlayerCell) Total() int {
+func (cell *PlayerCell) Total() int {
 	if cell.IsFlipped() {
 		return 0
 	}
 	return int(cell.card)
 }
 
-func (cell PlayerCell) Labels() string {
+func (cell *PlayerCell) Labels() string {
 	labels := make([]string, 0)
 	labels = append(labels, "cell")
 	if cell.flipped {

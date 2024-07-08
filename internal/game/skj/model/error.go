@@ -11,4 +11,8 @@ var (
 	ErrInvalidRow          = fmt.Errorf("invalid row")
 	ErrInvalidNumberOfCard = fmt.Errorf("invalid number of card")
 	ErrInvalidColumn       = fmt.Errorf("invalid column")
+	ErrAlreadySelectedCard = fmt.Errorf("already selected card")
+	ErrMissingSelectedCard = fmt.Errorf("missing selected card")
+	ErrNotShouldFlip       = fmt.Errorf("not should flip")
+	ErrPlayerBoardNotFound = fmt.Errorf("player board not found")
 )

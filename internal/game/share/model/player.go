@@ -1,13 +1,13 @@
 package model
 
+import "strings"
+
 // //////////////////////////////////////////////////
 // player
 
 type Player interface {
 	HasId() bool
 	Id() PlayerId
-	Status() PlayerStatus
-	SetStatus(status PlayerStatus)
 	Avatar() UserAvatar
 	SetAvatar(avatar UserAvatar)
 	Name() UserName
@@ -15,10 +15,34 @@ type Player interface {
 	Language() UserLanguage
 	SetLanguage(language UserLanguage)
 	SetCookie(cookie *Cookie)
+
+	Status() PlayerStatus
+	SetStatus(status PlayerStatus)
+
 	HasGameId() bool
 	GameId() GameId
 	SetGameId(gameId GameId)
 	UnsetGameId()
+
+	HasScore() bool
+	Score() PlayerScore
+	SetScore(score PlayerScore)
+	AddScore(score PlayerScore)
+	RemoveScore(score PlayerScore)
+	UnsetScore()
+
+	HasRank() bool
+	Rank() PlayerRank
+	SetRank(rank PlayerRank)
+	UnsetRank()
+
+	HasResult() bool
+	Result() PlayerResult
+	SetResult(result PlayerResult)
+	SetWin()
+	SetTie()
+	SetLoose()
+	UnsetResult()
 }
 
 // //////////////////////////////////////////////////
@@ -31,6 +55,10 @@ type player struct {
 	language UserLanguage
 	status   PlayerStatus
 	gameId   GameId
+	hasScore bool
+	score    PlayerScore
+	rank     PlayerRank
+	result   PlayerResult
 }
 
 func NewPlayer(id PlayerId) Player {
@@ -111,4 +139,96 @@ func (p *player) SetGameId(gameId GameId) {
 
 func (p *player) UnsetGameId() {
 	p.gameId = ""
+}
+
+func (p *player) HasScore() bool {
+	return p.hasScore
+}
+
+func (p *player) Score() PlayerScore {
+	return p.score
+}
+
+func (p *player) SetScore(score PlayerScore) {
+	p.hasScore = true
+	p.score = score
+}
+
+func (p *player) AddScore(score PlayerScore) {
+	p.hasScore = true
+	p.score += score
+}
+
+func (p *player) RemoveScore(score PlayerScore) {
+	p.hasScore = true
+	p.score -= score
+}
+
+func (p *player) UnsetScore() {
+	p.hasScore = false
+	p.score = 0
+}
+
+func (p *player) HasRank() bool {
+	return p.rank != 0
+}
+
+func (p *player) Rank() PlayerRank {
+	return p.rank
+}
+
+func (p *player) SetRank(rank PlayerRank) {
+	p.rank = rank
+}
+
+func (p *player) UnsetRank() {
+	p.rank = 0
+}
+
+func (p *player) HasResult() bool {
+	return p.result != 0
+}
+
+func (p *player) Result() PlayerResult {
+	return p.result
+}
+
+func (p *player) SetResult(result PlayerResult) {
+	p.result = result
+}
+
+func (p *player) SetWin() {
+	p.result = PlayerResult_Win
+}
+
+func (p *player) SetTie() {
+	p.result = PlayerResult_Tie
+}
+
+func (p *player) SetLoose() {
+	p.result = PlayerResult_Loose
+}
+
+func (p *player) UnsetResult() {
+	p.result = PlayerResult_Unknown
+}
+
+func (p *player) LabelSlice() []string {
+	labels := make([]string, 0)
+	labels = append(labels, "player")
+	labels = append(labels, p.Status().LabelSlice()...)
+	if p.HasRank() {
+		labels = append(labels, p.Rank().LabelSlice()...)
+	}
+	if p.HasResult() {
+		labels = append(labels, p.Result().LabelSlice()...)
+		if p.HasRank() {
+			labels = append(labels, p.Rank().MedalLabelSlice()...)
+		}
+	}
+	return labels
+}
+
+func (p *player) Labels() string {
+	return strings.Join(p.LabelSlice(), " ")
 }

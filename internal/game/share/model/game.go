@@ -23,12 +23,18 @@ type Game[PlayerT Player] interface {
 	Start()
 	Round() int
 	NextRound()
-	Order() []PlayerId
-	SetOrder(order []PlayerId)
+	Order() [][]PlayerId
+	SetOrder(order [][]PlayerId)
 	SetRandomOrder()
+	GetOrderedPlayerIds(index int) []PlayerId
+	GetOrderedPlayers(index int) []PlayerT
 	GetOrderedPlayerId(index int) PlayerId
 	GetOrderedPlayer(index int) PlayerT
+	GetRoundPlayerIds() []PlayerId
 	GetRoundPlayerId() PlayerId
+	GetRoundPlayers() []PlayerT
+	GetRoundPlayer() PlayerT
+	SetPlayingRoundPlayers()
 	SetPlayingRoundPlayer()
 	Stop()
 
@@ -40,47 +46,59 @@ type Game[PlayerT Player] interface {
 	DetachPlayer(player PlayerT)
 	HasPlayer(playerId PlayerId) bool
 	GetPlayer(id PlayerId) (PlayerT, bool)
+	MustGetPlayer(id PlayerId) PlayerT
 
 	GetPlayingPlayer() (PlayerT, bool)
 	GetPlayingPlayers() []PlayerT
 	GetNonPlayingPlayers() []PlayerT
 	SetPlayingPlayer(playerIds ...PlayerId)
 
-	PlayerResult(playerId PlayerId) PlayerResult
-	SetWinnerOthers(playerIds ...PlayerId)
+	RankIdFn(leftId, rightId PlayerId) RankResult
+	RankPlayerFn(left, right PlayerT) RankResult
+	RankPlayers()
+
+	UpdatePlayerScoreFn(player PlayerT)
+	UpdateScores()
+
+	SetLoosers(looserIds ...PlayerId)
 	SetWinners(winnerIds ...PlayerId)
 	SetTie()
-	SetWinRank(playerId PlayerId, rank int)
-	SetTieRank(playerId PlayerId, rank int)
-	SetLooseRank(playerId PlayerId, rank int)
 
 	LabelSlice() []string
 	Labels() string
 }
+
+type RankResult int
+
+const (
+	RankResult_Left RankResult = iota
+	RankResult_Equal
+	RankResult_Right
+)
 
 // //////////////////////////////////////////////////
 // game
 
 func NewGame[PlayerT Player]() Game[PlayerT] {
 	return &game[PlayerT]{
-		id:            GenerateGameId(),
-		status:        GameStatus_JoinableNotStartable,
-		createdAt:     time.Now(),
-		players:       make(map[PlayerId]PlayerT),
-		order:         make([]PlayerId, 0),
-		playerResults: make(map[PlayerId]PlayerResult),
-		round:         0,
+		id:        GenerateGameId(),
+		status:    GameStatus_JoinableNotStartable,
+		createdAt: time.Now(),
+		players:   make(map[PlayerId]PlayerT),
+		order:     make([][]PlayerId, 0),
+		ranks:     make([][]PlayerId, 0),
+		round:     0,
 	}
 }
 
 type game[PlayerT Player] struct {
-	id            GameId
-	status        GameStatus
-	createdAt     time.Time
-	players       map[PlayerId]PlayerT
-	round         int
-	order         []PlayerId
-	playerResults map[PlayerId]PlayerResult
+	id        GameId
+	status    GameStatus
+	createdAt time.Time
+	players   map[PlayerId]PlayerT
+	round     int
+	order     [][]PlayerId
+	ranks     [][]PlayerId
 }
 
 func (g *game[PlayerT]) Id() GameId {
@@ -116,14 +134,16 @@ func (g *game[PlayerT]) NextRound() {
 	g.round++
 }
 
-func (g *game[PlayerT]) Order() []PlayerId {
+func (g *game[PlayerT]) Order() [][]PlayerId {
 	return g.order
 }
 
-func (g *game[PlayerT]) SetOrder(order []PlayerId) {
-	for _, playerId := range order {
-		if !g.HasPlayer(playerId) {
-			panic(ErrPlayerNotFound)
+func (g *game[PlayerT]) SetOrder(order [][]PlayerId) {
+	for _, round := range order {
+		for _, playerId := range round {
+			if !g.HasPlayer(playerId) {
+				panic(ErrPlayerNotFound)
+			}
 		}
 	}
 	g.order = order
@@ -132,39 +152,68 @@ func (g *game[PlayerT]) SetOrder(order []PlayerId) {
 func (g *game[PlayerT]) SetRandomOrder() {
 	ids := dict.ConvertToList(g.players, dict.Key)
 	list.Shuffle(ids)
-	g.SetOrder(ids)
+	order := make([][]PlayerId, 0, len(ids))
+	for _, id := range ids {
+		order = append(order, []PlayerId{id})
+	}
+	g.SetOrder(order)
+}
+
+func (g *game[PlayerT]) GetOrderedPlayerIds(index int) []PlayerId {
+	return g.order[index%len(g.order)]
+}
+
+func (g *game[PlayerT]) GetOrderedPlayers(index int) []PlayerT {
+	playerIds := g.GetOrderedPlayerIds(index)
+	return list.Convert(playerIds, func(playerId PlayerId) PlayerT {
+		return g.MustGetPlayer(playerId)
+	})
 }
 
 func (g *game[PlayerT]) GetOrderedPlayerId(index int) PlayerId {
-	if index < 0 || index >= len(g.order) {
+	playerIds := g.GetOrderedPlayerIds(index)
+	if len(playerIds) == 0 {
 		panic(ErrPlayerNotFound)
 	}
-	return g.order[index]
+	return playerIds[0]
 }
 
 func (g *game[PlayerT]) GetOrderedPlayer(index int) PlayerT {
-	player, found := g.GetPlayer(g.GetOrderedPlayerId(index))
-	if !found {
-		panic(ErrPlayerNotFound)
-	}
-	return player
+	playerId := g.GetOrderedPlayerId(index)
+	return g.MustGetPlayer(playerId)
 }
 
-func (g *game[PlayerT]) GetRoundPlayerId() PlayerId {
+func (g *game[PlayerT]) GetRoundPlayerIds() []PlayerId {
 	orderIndex := g.Round() % g.NbPlayer()
 	return g.order[orderIndex]
 }
 
-func (g *game[PlayerT]) GetRoundPlayer() PlayerT {
-	player, found := g.GetPlayer(g.GetRoundPlayerId())
-	if !found {
+func (g *game[PlayerT]) GetRoundPlayerId() PlayerId {
+	playerIds := g.GetRoundPlayerIds()
+	if len(playerIds) == 0 {
 		panic(ErrPlayerNotFound)
 	}
-	return player
+	return playerIds[0]
+}
+
+func (g *game[PlayerT]) GetRoundPlayers() []PlayerT {
+	playerIds := g.GetRoundPlayerIds()
+	return list.Convert(playerIds, func(playerId PlayerId) PlayerT {
+		return g.MustGetPlayer(playerId)
+	})
+}
+
+func (g *game[PlayerT]) GetRoundPlayer() PlayerT {
+	playerId := g.GetRoundPlayerId()
+	return g.MustGetPlayer(playerId)
+}
+
+func (g *game[PlayerT]) SetPlayingRoundPlayers() {
+	g.SetPlayingPlayer(g.GetRoundPlayerIds()...)
 }
 
 func (g *game[PlayerT]) SetPlayingRoundPlayer() {
-	g.SetPlayingPlayer(g.GetRoundPlayerId())
+	g.SetPlayingRoundPlayers()
 }
 
 func (g *game[PlayerT]) Stop() {
@@ -190,13 +239,11 @@ func (g *game[PlayerT]) FilterPlayers(filterFn func(player PlayerT) bool) []Play
 
 func (g *game[PlayerT]) AttachPlayer(player PlayerT) {
 	g.players[player.Id()] = player
-	g.playerResults[player.Id()] = PlayerResult_Unknown
 	player.SetGameId(g.id)
 }
 
 func (g *game[PlayerT]) DetachPlayer(player PlayerT) {
 	delete(g.players, player.Id())
-	delete(g.playerResults, player.Id())
 	player.UnsetGameId()
 }
 
@@ -206,6 +253,14 @@ func (g *game[PlayerT]) HasPlayer(playerId PlayerId) bool {
 
 func (g *game[PlayerT]) GetPlayer(id PlayerId) (PlayerT, bool) {
 	return dict.Get(g.players, id)
+}
+
+func (g *game[PlayerT]) MustGetPlayer(id PlayerId) PlayerT {
+	player, found := g.GetPlayer(id)
+	if !found {
+		panic(ErrPlayerNotFound)
+	}
+	return player
 }
 
 func (g *game[PlayerT]) GetPlayingPlayer() (PlayerT, bool) {
@@ -241,48 +296,108 @@ func (g *game[PlayerT]) SetPlayingPlayer(playerIds ...PlayerId) {
 	}
 }
 
-func (g *game[PlayerT]) PlayerResult(playerId PlayerId) PlayerResult {
-	return dict.MustGet(g.playerResults, playerId)
+func (g *game[PlayerT]) RankIdFn(leftId, rightId PlayerId) RankResult {
+	left, leftFound := g.GetPlayer(leftId)
+	right, rightFound := g.GetPlayer(rightId)
+	if !leftFound && !rightFound {
+		return RankResult_Equal
+	} else if leftFound && !rightFound {
+		return RankResult_Left
+	} else if !leftFound && rightFound {
+		return RankResult_Right
+	} else {
+		return g.RankPlayerFn(left, right)
+	}
 }
 
-func (g *game[PlayerT]) SetWinnerOthers(playerIds ...PlayerId) {
-	otherIds := list.Filter(g.order, func(otherId PlayerId) bool {
-		return !list.Contains(playerIds, otherId)
-	})
-	g.SetWinners(otherIds...)
+func (g *game[PlayerT]) RankPlayerFn(left, right PlayerT) RankResult {
+	leftScore := left.Score()
+	rightScore := right.Score()
+	if leftScore > rightScore {
+		return RankResult_Left
+	} else if rightScore > leftScore {
+		return RankResult_Right
+	} else {
+		return RankResult_Equal
+	}
+}
+
+func (g *game[PlayerT]) RankPlayers() {
+
+	ranks := make([][]PlayerId, 0, len(g.players))
+	for leftId := range g.players {
+		added := false
+		for i, group := range ranks {
+			rightId := group[0]
+			switch g.RankIdFn(leftId, rightId) {
+			case RankResult_Left:
+				if i > 0 {
+					ranks = append(ranks[:i], append([][]PlayerId{{leftId}}, ranks[i:]...)...)
+				} else {
+					ranks = append([][]PlayerId{{leftId}}, ranks...)
+				}
+				added = true
+				continue
+			case RankResult_Right:
+				continue
+			case RankResult_Equal:
+				ranks[i] = append(ranks[i], leftId)
+				added = true
+			}
+			if added {
+				break
+			}
+		}
+		if !added {
+			ranks = append(ranks, []PlayerId{leftId})
+		}
+	}
+
+	for rankIndex, playerIds := range ranks {
+		for _, playerId := range playerIds {
+			player, found := g.GetPlayer(playerId)
+			if !found {
+				panic(ErrPlayerNotFound)
+			}
+			player.SetRank(PlayerRank(rankIndex + 1))
+		}
+	}
+}
+
+func (g *game[PlayerT]) UpdatePlayerScoreFn(player PlayerT) {
+	player.UnsetScore()
+}
+
+func (g *game[PlayerT]) UpdateScores() {
+	for _, player := range g.players {
+		g.UpdatePlayerScoreFn(player)
+	}
+	g.RankPlayers()
+}
+
+func (g *game[PlayerT]) SetLoosers(looserIds ...PlayerId) {
+	for playerId, player := range g.players {
+		if list.Contains(looserIds, playerId) {
+			player.SetLoose()
+		} else {
+			player.SetWin()
+		}
+	}
 }
 
 func (g *game[PlayerT]) SetWinners(winnerIds ...PlayerId) {
-	for playerId := range g.playerResults {
+	for playerId, player := range g.players {
 		if list.Contains(winnerIds, playerId) {
-			g.playerResults[playerId] = NewWinResult()
+			player.SetWin()
 		} else {
-			g.playerResults[playerId] = NewLooseResult()
+			player.SetLoose()
 		}
 	}
 }
 
 func (g *game[PlayerT]) SetTie() {
-	for playerId := range g.playerResults {
-		g.playerResults[playerId] = NewTieResult()
-	}
-}
-
-func (g *game[PlayerT]) SetWinRank(playerId PlayerId, rank int) {
-	if g.HasPlayer(playerId) {
-		g.playerResults[playerId] = NewWinRankResult(rank)
-	}
-}
-
-func (g *game[PlayerT]) SetTieRank(playerId PlayerId, rank int) {
-	if g.HasPlayer(playerId) {
-		g.playerResults[playerId] = NewTieRankResult(rank)
-	}
-}
-
-func (g *game[PlayerT]) SetLooseRank(playerId PlayerId, rank int) {
-	if g.HasPlayer(playerId) {
-		g.playerResults[playerId] = NewLooseRankResult(rank)
+	for _, player := range g.players {
+		player.SetTie()
 	}
 }
 

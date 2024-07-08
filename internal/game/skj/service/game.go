@@ -9,13 +9,19 @@ import (
 	share_service "github.com/gre-ory/games-go/internal/game/share/service"
 	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 
-	"github.com/gre-ory/games-go/internal/game/ttt/model"
-	"github.com/gre-ory/games-go/internal/game/ttt/store"
+	"github.com/gre-ory/games-go/internal/game/skj/model"
+	"github.com/gre-ory/games-go/internal/game/skj/store"
 )
 
 type GameService interface {
 	share_service.GameService[*model.Player, *model.Game]
-	PlayPlayerGame(player *model.Player, x, y int) (*model.Game, error)
+
+	DrawDiscardCard(player *model.Player) (*model.Game, error)
+	DrawCard(player *model.Player) (*model.Game, error)
+	PutCard(player *model.Player, columnNumber, rowNumber int) (*model.Game, error)
+	DiscardCard(player *model.Player) (*model.Game, error)
+	FlipCard(player *model.Player, columnNumber, rowNumber int) (*model.Game, error)
+
 	WrapData(data share_websocket.Data, player *model.Player) (bool, any)
 }
 
@@ -32,39 +38,106 @@ type gameService struct {
 	logger *zap.Logger
 }
 
-func (s *gameService) PlayPlayerGame(player *model.Player, x, y int) (*model.Game, error) {
+func (s *gameService) DrawDiscardCard(player *model.Player) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
+	if err != nil {
+		return nil, err
+	}
+	if game.SelectedCard != nil {
+		return nil, model.ErrAlreadySelectedCard
+	}
+	card, err := game.DiscardDeck.Draw()
+	if err != nil {
+		return nil, err
+	}
+	game.SelectedCard = &card
+	return game, nil
+}
+
+func (s *gameService) DrawCard(player *model.Player) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
+	if err != nil {
+		return nil, err
+	}
+	if game.SelectedCard != nil {
+		return nil, model.ErrAlreadySelectedCard
+	}
+	card, err := game.DrawDeck.Draw()
+	if err != nil {
+		return nil, err
+	}
+	game.SelectedCard = &card
+	return game, nil
+}
+
+func (s *gameService) PutCard(player *model.Player, columnNumber, rowNumber int) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
+	if err != nil {
+		return nil, err
+	}
+	if game.SelectedCard == nil {
+		return nil, model.ErrMissingSelectedCard
+	}
+
+}
+
+func (s *gameService) DiscardCard(player *model.Player) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
+	if err != nil {
+		return nil, err
+	}
+	if game.SelectedCard == nil {
+		return nil, model.ErrMissingSelectedCard
+	}
+	game.DiscardDeck.Add(*game.SelectedCard)
+	game.ShouldFlip = true
+	return game, nil
+}
+
+func (s *gameService) FlipCard(player *model.Player, columnNumber, rowNumber int) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
+	if err != nil {
+		return nil, err
+	}
+	if !game.ShouldFlip {
+		return nil, model.ErrNotShouldFlip
+	}
+	board, err := s.getBoard(game, player)
+	if err != nil {
+		return nil, err
+	}
+	err = board.Flip(columnNumber-1, rowNumber-1)
+	if err != nil {
+		return nil, err
+	}
+
+	// check if all cells are flipped
+	if board.IsFlipped() {
+
+	}
+
+	return game, nil
+}
+
+func (s *gameService) getPlayGame(player *model.Player) (*model.Game, error) {
 	game, err := s.GetGame(player.GameId())
 	if err != nil {
 		return nil, err
 	}
-	return s.PlayGame(game, player, x, y)
-}
-
-func (s *gameService) PlayGame(game *model.Game, player *model.Player, x, y int) (*model.Game, error) {
 	if err := game.Status().CanPlay(); err != nil {
 		return nil, err
 	}
 	if !player.Status().IsPlaying() {
-		return nil, model.ErrWrongPlayer
+		return nil, share_model.ErrWrongPlayer
 	}
+	return game, nil
+}
 
-	err := game.Play(player, x, y)
-	if err != nil {
-		return nil, err
+func (s *gameService) getBoard(game *model.Game, player *model.Player) (*model.PlayerBoard, error) {
+	if board, found := game.GetBoard(player.Id()); found {
+		return board, nil
 	}
-
-	if yes, winnerId := game.HasWinner(); yes {
-		game.SetWinners(winnerId)
-		s.StopGame(game)
-	} else if game.IsTie() {
-		game.SetTie()
-		s.StopGame(game)
-	} else {
-		game.NextRound()
-		game.SetPlayingRoundPlayer()
-	}
-
-	return s.SaveGame(game)
+	return nil, model.ErrPlayerBoardNotFound
 }
 
 func (s *gameService) WrapData(data share_websocket.Data, player *model.Player) (bool, any) {
@@ -112,16 +185,39 @@ func (p *gamePlugin) JoinGame(game *model.Game, player *model.Player) (*model.Ga
 
 func (p *gamePlugin) CanStartGame(game *model.Game) error {
 	if !game.CanStart() {
-		return model.ErrMissingPlayers
+		return share_model.ErrMissingPlayers
 	}
 	return nil
 }
 
 func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
-	game.SetRandomOrder()
-	game.GetOrderedPlayer(0).SetSymbol(model.PLAYER_ONE_SYMBOL)
-	game.GetOrderedPlayer(1).SetSymbol(model.PLAYER_TWO_SYMBOL)
 
+	//
+	// draw cards & build player boards
+	//
+
+	for _, player := range game.GetPlayers() {
+		board := model.NewPlayerBoard()
+		for columnIndex := 0; columnIndex < game.NbColumn; columnIndex++ {
+			column := model.NewPlayerColumn(columnIndex + 1)
+			for rowIndex := 0; rowIndex < game.NbRow; rowIndex++ {
+				card, err := game.DrawDeck.Draw()
+				if err != nil {
+					return nil, err
+				}
+				cell := model.NewPlayerCell(columnIndex+1, rowIndex+1, card)
+				column.AddCell(cell)
+			}
+			board.AddColumn(column)
+		}
+		game.AddBoard(player.Id(), board)
+	}
+
+	//
+	// start game
+	//
+
+	game.SetRandomOrder()
 	game.Start()
 	game.SetPlayingRoundPlayer()
 
@@ -141,7 +237,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 	case game.Status().IsStopped():
 	case game.Status().IsStarted():
 		// set other player as winner
-		game.SetWinnerOthers(player.Id())
+		game.SetLoosers(player.Id())
 		game.Stop()
 	default:
 		game.DetachPlayer(player)

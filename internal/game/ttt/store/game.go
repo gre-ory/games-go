@@ -1,13 +1,15 @@
 package store
 
 import (
+	share_store "github.com/gre-ory/games-go/internal/game/share/store"
+
 	"github.com/gre-ory/games-go/internal/game/ttt/model"
 )
 
 type GameStore interface {
-	game.GameStore[*model.Game]
+	share_store.GameStore[*model.Game]
 }
 
 func NewGameStore() GameStore {
-	return game.NewGameMemoryStore[*model.Game]()
+	return share_store.NewGameMemoryStore[*model.Game]()
 }

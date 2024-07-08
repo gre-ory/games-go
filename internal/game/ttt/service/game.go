@@ -140,8 +140,8 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 	switch {
 	case game.Status().IsStopped():
 	case game.Status().IsStarted():
-		// set other player as winner
-		game.SetWinnerOthers(player.Id())
+		// set current player as looser
+		game.SetLoosers(player.Id())
 		game.Stop()
 	default:
 		game.DetachPlayer(player)

@@ -147,13 +147,6 @@ func (g *Game) IsStopped() bool {
 }
 
 func (g *Game) PlayerLabels(playerId share_model.PlayerId) string {
-	if g.IsStopped() {
-		labels := make([]string, 0)
-		labels = append(labels, "player")
-		result := g.PlayerResult(playerId)
-		labels = append(labels, result.LabelSlice()...)
-		return strings.Join(labels, " ")
-	}
 	player, found := g.GetPlayer(playerId)
 	if !found {
 		return "error"
@@ -162,8 +155,12 @@ func (g *Game) PlayerLabels(playerId share_model.PlayerId) string {
 }
 
 func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
-	if g.IsStopped() {
-		result := g.PlayerResult(playerId)
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	if player.HasResult() {
+		result := player.Result()
 		switch {
 		case result.IsWin():
 			return localizer.Loc("YouWin")
@@ -172,18 +169,17 @@ func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId share_model.P
 		case result.IsLoose():
 			return localizer.Loc("YouLoose")
 		}
-		return ""
-	}
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
 	return player.YourMessage(localizer)
 }
 
 func (g *Game) PlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
-	if g.IsStopped() {
-		result := g.PlayerResult(playerId)
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	if player.HasResult() {
+		result := player.Result()
 		switch {
 		case result.IsWin():
 			return localizer.Loc("PlayerWin")
@@ -192,31 +188,17 @@ func (g *Game) PlayerMessage(localizer loc.Localizer, playerId share_model.Playe
 		case result.IsLoose():
 			return localizer.Loc("PlayerLoose")
 		}
-		return ""
-	}
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
 	return player.Message(localizer)
 }
 
 func (g *Game) PlayerStatusIcon(playerId share_model.PlayerId) string {
-	if g.IsStopped() {
-		result := g.PlayerResult(playerId)
-		switch {
-		case result.IsWin():
-			return "icon-win"
-		case result.IsTie():
-			return "icon-tie"
-		case result.IsLoose():
-			return "icon-loose"
-		}
-		return ""
-	}
 	player, found := g.GetPlayer(playerId)
 	if !found {
 		return ""
+	}
+	if player.HasResult() {
+		return player.Result().Icon()
 	}
 	return player.StatusIcon()
 }
