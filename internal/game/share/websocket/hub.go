@@ -41,12 +41,13 @@ type Hub[PlayerT Player] interface {
 	GetAllPlayers() []PlayerT
 	GetNotPlayingPlayers() []PlayerT
 	GetGamePlayers(gameId model.GameId) []PlayerT
+	FilterPlayers(filterFn func(player PlayerT) bool) []PlayerT
 }
 
 func NewHub[PlayerT Player](logger *zap.Logger, wrapData func(data Data, player PlayerT) (bool, any), tplRenderer util.TplRenderer) Hub[PlayerT] {
 	h := &hub[PlayerT]{
 		TplRenderer: tplRenderer,
-		broadcast:   make(chan Template[PlayerT]),
+		broadcast:   make(chan TplRenderer[PlayerT]),
 		Register:    make(chan PlayerT),
 		Unregister:  make(chan model.PlayerId),
 		logger:      logger,
@@ -60,7 +61,7 @@ func NewHub[PlayerT Player](logger *zap.Logger, wrapData func(data Data, player 
 type hub[PlayerT Player] struct {
 	util.TplRenderer
 
-	broadcast  chan Template[PlayerT]
+	broadcast  chan TplRenderer[PlayerT]
 	Register   chan PlayerT
 	Unregister chan model.PlayerId
 
@@ -267,8 +268,8 @@ func (h *hub[PlayerT]) AcceptPlayerFn(id model.PlayerId, acceptFn func(player Pl
 	}
 }
 
-func (h *hub[PlayerT]) NewNamedTemplate(name string, acceptFn func(player PlayerT) (bool, any)) Template[PlayerT] {
-	return h.NewTemplate(acceptFn, h.NewNamedRenderFn(name))
+func (h *hub[PlayerT]) NewNamedTemplate(name string, acceptFn func(player PlayerT) (bool, any)) TplRenderer[PlayerT] {
+	return h.NewTplRenderer(acceptFn, h.NewNamedRenderFn(name))
 }
 
 func (h *hub[PlayerT]) NewNamedRenderFn(name string) func(w io.Writer, data any) {
@@ -284,7 +285,7 @@ func (h *hub[PlayerT]) BroadcastToPlayerRender(id model.PlayerId, data Data, ren
 }
 
 func (h *hub[PlayerT]) BroadcastToPlayerRenderFn(id model.PlayerId, acceptFn func(player PlayerT) (bool, any), renderFn func(w io.Writer, data any)) {
-	h.broadcast <- h.NewTemplate(
+	h.broadcast <- h.NewTplRenderer(
 		h.AcceptPlayerFn(id, acceptFn),
 		renderFn,
 	)
@@ -297,14 +298,14 @@ func (h *hub[PlayerT]) BroadcastRender(data Data, renderFn func(w io.Writer, dat
 }
 
 func (h *hub[PlayerT]) BroadcastRenderFn(acceptFn func(player PlayerT) (bool, any), renderFn func(w io.Writer, data any)) {
-	h.broadcast <- h.NewTemplate(
+	h.broadcast <- h.NewTplRenderer(
 		acceptFn,
 		renderFn,
 	)
 }
 
-func (h *hub[PlayerT]) NewTemplate(acceptFn func(player PlayerT) (bool, any), renderFn func(w io.Writer, data any)) Template[PlayerT] {
-	return NewTemplate[PlayerT](acceptFn, renderFn)
+func (h *hub[PlayerT]) NewTplRenderer(acceptFn func(player PlayerT) (bool, any), renderFn func(w io.Writer, data any)) TplRenderer[PlayerT] {
+	return NewTplRenderer[PlayerT](acceptFn, renderFn)
 }
 
 func (h *hub[PlayerT]) WrapPlayerData(data Data, player PlayerT) (bool, any) {
@@ -318,7 +319,7 @@ func (h *hub[PlayerT]) WrapPlayerData(data Data, player PlayerT) (bool, any) {
 	return true, data
 }
 
-func (h *hub[PlayerT]) onBroadcast(tpl Template[PlayerT]) {
+func (h *hub[PlayerT]) onBroadcast(tpl TplRenderer[PlayerT]) {
 	if DebugLock {
 		h.logger.Info("[api] onBroadcast.RLock...")
 	}
@@ -356,13 +357,17 @@ func (h *hub[PlayerT]) GetAllPlayers() []PlayerT {
 }
 
 func (h *hub[PlayerT]) GetNotPlayingPlayers() []PlayerT {
-	return list.Filter(h.GetAllPlayers(), func(player PlayerT) bool {
+	return h.FilterPlayers(func(player PlayerT) bool {
 		return player.CanJoin()
 	})
 }
 
 func (h *hub[PlayerT]) GetGamePlayers(gameId model.GameId) []PlayerT {
-	return list.Filter(h.GetAllPlayers(), func(player PlayerT) bool {
+	return h.FilterPlayers(func(player PlayerT) bool {
 		return player.GameId() == gameId
 	})
+}
+
+func (h *hub[PlayerT]) FilterPlayers(filterFn func(player PlayerT) bool) []PlayerT {
+	return list.Filter(h.GetAllPlayers(), filterFn)
 }

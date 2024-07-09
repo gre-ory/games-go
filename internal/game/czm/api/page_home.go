@@ -44,7 +44,7 @@ func (s *gameServer) page_home(w http.ResponseWriter, r *http.Request) {
 		//
 
 		renderer := share_api.NewRenderer()
-		localizer := loc.NewLocalizer(model.AppId, string(cookie.Language), s.logger)
+		localizer := loc.NewLocalizer(model.AppId, loc.Language(cookie.Language), s.logger)
 		s.Render(w, "page-home", map[string]any{
 			"app":         model.AppId,
 			"cookie":      cookie,

@@ -33,7 +33,7 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 			break
 		}
 
-		player, err = s.hub.GetPlayer(playerId)
+		player, err = s.GetPlayer(playerId)
 		if err != nil {
 			s.logger.Info("[DEBUG] player not founf: " + err.Error())
 			break
@@ -65,7 +65,7 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 	}
 
 	if err != nil {
-		s.broadcastErrorToPlayer(playerId, err)
+		s.BroadcastErrorToPlayer(playerId, err)
 	}
 }
 

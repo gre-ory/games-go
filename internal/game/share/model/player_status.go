@@ -66,3 +66,15 @@ func (s PlayerStatus) LabelSlice() []string {
 func (s PlayerStatus) Labels() string {
 	return strings.Join(s.LabelSlice(), " ")
 }
+
+func (s PlayerStatus) Icon() string {
+	switch s {
+	case PlayerStatus_WaitingToJoin,
+		PlayerStatus_WaitingToStart,
+		PlayerStatus_WaitingToPlay:
+		return "icon-pause"
+	case PlayerStatus_Playing:
+		return "icon-play"
+	}
+	return ""
+}

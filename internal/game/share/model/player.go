@@ -1,6 +1,11 @@
 package model
 
-import "strings"
+import (
+	"html/template"
+	"strings"
+
+	"github.com/gre-ory/games-go/internal/util/loc"
+)
 
 // //////////////////////////////////////////////////
 // player
@@ -16,6 +21,7 @@ type Player interface {
 	SetLanguage(language UserLanguage)
 	SetCookie(cookie *Cookie)
 
+	IsPlaying() bool
 	Status() PlayerStatus
 	SetStatus(status PlayerStatus)
 
@@ -43,6 +49,12 @@ type Player interface {
 	SetTie()
 	SetLoose()
 	UnsetResult()
+
+	YourMessage(localizer loc.Localizer) template.HTML
+	Message(localizer loc.Localizer) template.HTML
+
+	LabelSlice() []string
+	Labels() string
 }
 
 // //////////////////////////////////////////////////
@@ -115,6 +127,10 @@ func (p *player) SetCookie(cookie *Cookie) {
 	p.avatar = cookie.Avatar
 	p.name = cookie.Name
 	p.language = cookie.Language
+}
+
+func (p *player) IsPlaying() bool {
+	return p.status.IsPlaying()
 }
 
 func (p *player) Status() PlayerStatus {
@@ -211,6 +227,34 @@ func (p *player) SetLoose() {
 
 func (p *player) UnsetResult() {
 	p.result = PlayerResult_Unknown
+}
+
+func (p *player) YourMessage(localizer loc.Localizer) template.HTML {
+	switch p.Status() {
+	case PlayerStatus_WaitingToJoin:
+		return localizer.Loc("YouWaitingToJoin")
+	case PlayerStatus_WaitingToStart:
+		return localizer.Loc("YouWaitingToStart")
+	case PlayerStatus_WaitingToPlay:
+		return localizer.Loc("YouWaitingToPlay")
+	case PlayerStatus_Playing:
+		return localizer.Loc("YouPlaying")
+	}
+	return ""
+}
+
+func (p *player) Message(localizer loc.Localizer) template.HTML {
+	switch p.Status() {
+	case PlayerStatus_WaitingToJoin:
+		return localizer.Loc("PlayerWaitingToJoin")
+	case PlayerStatus_WaitingToStart:
+		return localizer.Loc("PlayerWaitingToStart")
+	case PlayerStatus_WaitingToPlay:
+		return localizer.Loc("PlayerWaitingToPlay")
+	case PlayerStatus_Playing:
+		return localizer.Loc("PlayerPlaying")
+	}
+	return ""
 }
 
 func (p *player) LabelSlice() []string {

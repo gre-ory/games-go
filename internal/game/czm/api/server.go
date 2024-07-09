@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -10,10 +9,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/gre-ory/games-go/internal/util"
-	"github.com/gre-ory/games-go/internal/util/websocket"
 
 	share_api "github.com/gre-ory/games-go/internal/game/share/api"
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 	"github.com/gre-ory/games-go/internal/game/czm/service"
@@ -32,18 +31,15 @@ func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, serv
 	server := &gameServer{
 		HxServer:     hxServer,
 		CookieServer: cookieServer,
+		GameServer:   share_api.NewGameServer(logger, service),
 		logger:       logger,
 		service:      service,
 	}
 
-	server.CreateGameServer = share_api.NewCreateGameServer(logger, service, server.OnCreateGame)
-	server.JoinGameServer = share_api.NewJoinGameServer(logger, service, server.OnJoinGame)
-	server.StartGameServer = share_api.NewStartGameServer(logger, service, server.OnStartGame)
-	server.LeaveGameServer = share_api.NewLeaveGameServer(logger, service, server.OnLeaveGame)
+	hub := share_websocket.NewHub[*model.Player](logger, server.WrapData, hxServer)
+	server.HubServer = share_websocket.NewHubServer[*model.Player, *model.Game](hub, service)
 
-	server.hub = websocket.NewHub[model.PlayerId, model.GameId, *model.Player](logger, server.WrapData, hxServer)
-
-	cookieServer.RegisterOnCookie(server.onCookie)
+	server.CookieServer.RegisterOnCookie(server.onCookie)
 
 	return server
 }
@@ -51,13 +47,10 @@ func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, serv
 type gameServer struct {
 	util.HxServer
 	share_api.CookieServer
-	share_api.CreateGameServer[*model.Player]
-	share_api.JoinGameServer[*model.Player, model.GameId]
-	share_api.StartGameServer[*model.Player]
-	share_api.LeaveGameServer[*model.Player]
+	share_websocket.HubServer[*model.Player, *model.Game]
+	share_api.GameServer[*model.Player]
 	logger  *zap.Logger
 	service service.GameService
-	hub     websocket.Hub[model.PlayerId, model.GameId, *model.Player]
 }
 
 // //////////////////////////////////////////////////
@@ -75,7 +68,7 @@ func (s *gameServer) path(path string) string {
 // //////////////////////////////////////////////////
 // wrap data
 
-func (s *gameServer) WrapData(data websocket.Data, player *model.Player) (bool, any) {
+func (s *gameServer) WrapData(data share_websocket.Data, player *model.Player) (bool, any) {
 	data.With("share", share_api.NewRenderer())
 	return s.service.WrapData(data, player)
 }
@@ -87,7 +80,7 @@ func (s *gameServer) onCookie(cookie *share_model.Cookie) {
 	s.logger.Info(fmt.Sprintf("[on-cookie] %s <<< ", model.AppId), zap.Any("cookie", cookie))
 
 	playerId := cookie.PlayerId()
-	player, err := s.hub.GetPlayer(playerId)
+	player, err := s.GetPlayer(playerId)
 	if err != nil {
 		s.logger.Error("player NOT found", zap.Any("cookie", cookie))
 		return
@@ -100,14 +93,14 @@ func (s *gameServer) onCookie(cookie *share_model.Cookie) {
 
 func (s *gameServer) broadcastUser(cookie *share_model.Cookie) {
 	playerId := cookie.PlayerId()
-	s.hub.BroadcastToPlayerRender(playerId, nil, s.CookieServer.RenderUser(cookie))
+	s.Hub().BroadcastToPlayerRender(playerId, nil, s.CookieServer.RenderUser(cookie))
 }
 
 // //////////////////////////////////////////////////
 // on player update
 
-func (s *gameServer) onPlayerUpdate(playerId model.PlayerId) {
-	player, err := s.hub.GetPlayer(playerId)
+func (s *gameServer) onPlayerUpdate(playerId share_model.PlayerId) {
+	player, err := s.GetPlayer(playerId)
 	if err != nil {
 		s.logger.Error("player NOT found", zap.Any("id", playerId))
 		return
@@ -116,12 +109,12 @@ func (s *gameServer) onPlayerUpdate(playerId model.PlayerId) {
 }
 
 func (s *gameServer) broadcastPlayer(player *model.Player) {
-	s.hub.UpdatePlayer(player)
-	s.broadcastJoinableGames()
+	s.UpdatePlayer(player)
+	s.BroadcastJoinableGames()
 	if player.HasGameId() {
 		game, err := s.service.GetGame(player.GameId())
 		if err == nil {
-			s.broadcastGame(game)
+			s.BroadcastGame(game)
 		}
 	}
 }
@@ -130,12 +123,12 @@ func (s *gameServer) broadcastPlayer(player *model.Player) {
 // on game events
 
 func (s *gameServer) OnCreateGame(player *model.Player, game *model.Game) {
-	s.broadcastGameLayoutToPlayer(player.Id(), game)
+	s.BroadcastGameLayoutToPlayer(player.Id(), game)
 	s.OnGame(game)
 }
 
 func (s *gameServer) OnJoinGame(player *model.Player, game *model.Game) {
-	s.broadcastGameLayoutToPlayer(player.Id(), game)
+	s.BroadcastGameLayoutToPlayer(player.Id(), game)
 	s.OnGame(game)
 }
 
@@ -144,121 +137,13 @@ func (s *gameServer) OnStartGame(player *model.Player, game *model.Game) {
 }
 
 func (s *gameServer) OnLeaveGame(player *model.Player, game *model.Game) {
-	s.broadcastJoinableGamesToPlayer(player.Id())
+	s.BroadcastJoinableGamesToPlayer(player.Id())
 	s.OnGame(game)
 }
 
 func (s *gameServer) OnGame(game *model.Game) {
 	if game != nil {
-		s.broadcastGame(game)
+		s.BroadcastGame(game)
 	}
-	s.broadcastJoinableGames()
-}
-
-// //////////////////////////////////////////////////
-// broadcast
-
-func (s *gameServer) broadcastInfoToPlayers(game *model.Game, info string) {
-	s.hub.BroadcastToGamePlayers("info", game.Id(), websocket.Data{
-		"info": info,
-	})
-}
-
-func (s *gameServer) broadcastInfoToPlayer(playerId model.PlayerId, info string) {
-	s.hub.BroadcastToPlayer("info", playerId, websocket.Data{
-		"info": info,
-	})
-}
-
-func (s *gameServer) broadcastErrorToPlayer(playerId model.PlayerId, err error) {
-	s.hub.BroadcastToPlayer("error", playerId, websocket.Data{
-		"error": err.Error(),
-	})
-}
-
-func (s *gameServer) broadcastSelectGameToPlayer(playerId model.PlayerId) {
-	data := s.getJoinableGamesData(playerId)
-	s.hub.BroadcastToPlayer("select-game", playerId, data)
-}
-
-func (s *gameServer) broadcastGameLayoutToPlayer(playerId model.PlayerId, game *model.Game) {
-	s.hub.BroadcastToPlayer("game-layout", playerId, websocket.Data{
-		"game": game,
-	})
-}
-
-func (s *gameServer) broadcastJoinableGamesToPlayer(playerId model.PlayerId) {
-	data := s.getJoinableGamesData(playerId)
-	s.hub.BroadcastToPlayer("select-game", playerId, data)
-}
-
-func (s *gameServer) broadcastJoinableGames() {
-	s.hub.BroadcastToNotPlayingPlayersFn("select-game", func(player *model.Player) (bool, any) {
-		data := s.getJoinableGamesData(player.Id())
-		return s.hub.WrapPlayerData(data, player)
-	})
-}
-
-func (s *gameServer) getJoinableGamesData(playerId model.PlayerId) websocket.Data {
-	waitingPlayers := s.getWaitingPlayers(playerId)
-	data := make(websocket.Data)
-	data["new_games"] = s.service.GetJoinableGames()
-	data["other_games"] = s.service.GetNotJoinableGames(playerId)
-	data["has_waiting_players"] = len(waitingPlayers) > 0
-	data["waiting_players"] = waitingPlayers
-	return data
-}
-
-func (s *gameServer) getWaitingPlayers(playerId model.PlayerId) []*model.Player {
-	players := s.hub.GetNotPlayingPlayers()
-	waitingPlayers := make([]*model.Player, 0, len(players))
-	for _, player := range players {
-		if player == nil {
-			continue
-		}
-		if player.Id() == playerId {
-			continue
-		}
-		waitingPlayers = append(waitingPlayers, player)
-	}
-	return waitingPlayers
-}
-
-func (s *gameServer) broadcastGame(game *model.Game) {
-	s.broadcastPlayers(game)
-	s.broadcastBoard(game)
-	s.broadcastPlayerBoard(game)
-}
-
-func (s *gameServer) broadcastPlayers(game *model.Game) {
-	s.hub.BroadcastToGamePlayers("players", game.Id(), websocket.Data{
-		"players": game.Players,
-	})
-}
-
-func (s *gameServer) broadcastBoard(game *model.Game) {
-	s.hub.BroadcastToGamePlayers("board", game.Id(), websocket.Data{
-		"game": game,
-	})
-}
-
-func (s *gameServer) broadcastPlayerBoard(game *model.Game) {
-	s.hub.BroadcastToGamePlayers("player-board", game.Id(), websocket.Data{
-		"game": game,
-	})
-}
-
-// //////////////////////////////////////////////////
-// render
-
-func (s *gameServer) renderInfo(w io.Writer, info string) {
-	s.Render(w, "info", websocket.Data{
-		"info": info,
-	})
-}
-
-func (s *gameServer) renderError(w io.Writer, err error) {
-	s.Render(w, "error", websocket.Data{
-		"error": err.Error(),
-	})
+	s.BroadcastJoinableGames()
 }

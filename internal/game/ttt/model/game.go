@@ -4,10 +4,12 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/gre-ory/games-go/internal/util/loc"
-
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
+)
+
+const (
+	NbPlayer = 2
 )
 
 func NewGame(nbRow, nbColumn int) *Game {
@@ -16,7 +18,7 @@ func NewGame(nbRow, nbColumn int) *Game {
 		rows[y] = NewRow(nbColumn)
 	}
 	game := &Game{
-		Game: share_model.NewGame[*Player](),
+		Game: share_model.NewGame[*Player](NbPlayer, NbPlayer),
 		Rows: rows,
 	}
 	return game
@@ -25,39 +27,6 @@ func NewGame(nbRow, nbColumn int) *Game {
 type Game struct {
 	share_model.Game[*Player]
 	Rows map[int]*Row
-}
-
-const (
-	NbPlayer = 2
-)
-
-func (g *Game) CanJoin() bool {
-	return g.NbPlayer() < NbPlayer
-}
-
-func (g *Game) CanStart() bool {
-	return g.NbPlayer() == NbPlayer
-}
-
-func (g *Game) UpdateStatus() {
-	if !g.CanJoin() {
-		g.SetStatus(share_model.GameStatus_NotJoinableAndStartable)
-		for _, player := range g.GetPlayers() {
-			player.SetStatus(share_model.PlayerStatus_WaitingToStart)
-		}
-	} else {
-		if g.CanStart() {
-			g.SetStatus(share_model.GameStatus_JoinableAndStartable)
-			for _, player := range g.GetPlayers() {
-				player.SetStatus(share_model.PlayerStatus_WaitingToStart)
-			}
-		} else {
-			g.SetStatus(share_model.GameStatus_JoinableNotStartable)
-			for _, player := range g.GetPlayers() {
-				player.SetStatus(share_model.PlayerStatus_WaitingToJoin)
-			}
-		}
-	}
 }
 
 func (g *Game) WrapData(data share_websocket.Data, player *Player) (bool, any) {
@@ -140,67 +109,6 @@ func (g *Game) IsTie() bool {
 		return false
 	}
 	return true
-}
-
-func (g *Game) IsStopped() bool {
-	return g.Status().IsStopped()
-}
-
-func (g *Game) PlayerLabels(playerId share_model.PlayerId) string {
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return "error"
-	}
-	return player.Labels()
-}
-
-func (g *Game) YourPlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return localizer.Loc("Error", ErrPlayerNotFound.Error())
-	}
-	if player.HasResult() {
-		result := player.Result()
-		switch {
-		case result.IsWin():
-			return localizer.Loc("YouWin")
-		case result.IsTie():
-			return localizer.Loc("YouTie")
-		case result.IsLoose():
-			return localizer.Loc("YouLoose")
-		}
-	}
-	return player.YourMessage(localizer)
-}
-
-func (g *Game) PlayerMessage(localizer loc.Localizer, playerId share_model.PlayerId) template.HTML {
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return localizer.Loc("Error", ErrPlayerNotFound.Error())
-	}
-	if player.HasResult() {
-		result := player.Result()
-		switch {
-		case result.IsWin():
-			return localizer.Loc("PlayerWin")
-		case result.IsTie():
-			return localizer.Loc("PlayerTie")
-		case result.IsLoose():
-			return localizer.Loc("PlayerLoose")
-		}
-	}
-	return player.Message(localizer)
-}
-
-func (g *Game) PlayerStatusIcon(playerId share_model.PlayerId) string {
-	player, found := g.GetPlayer(playerId)
-	if !found {
-		return ""
-	}
-	if player.HasResult() {
-		return player.Result().Icon()
-	}
-	return player.StatusIcon()
 }
 
 // //////////////////////////////////////////////////

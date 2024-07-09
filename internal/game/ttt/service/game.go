@@ -138,8 +138,8 @@ func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error 
 
 func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
 	switch {
-	case game.Status().IsStopped():
-	case game.Status().IsStarted():
+	case game.IsStopped():
+	case game.IsStarted():
 		// set current player as looser
 		game.SetLoosers(player.Id())
 		game.Stop()
@@ -148,7 +148,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 		if !game.HasPlayers() {
 			game.MarkForDeletion()
 		} else {
-			game.UpdateStatus()
+			game.UpdateJoinStatus()
 		}
 	}
 	return game, nil

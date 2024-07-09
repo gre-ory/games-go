@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/gre-ory/games-go/internal/game/share/model"
+	"github.com/gre-ory/games-go/internal/util/loc"
 )
 
 // //////////////////////////////////////////////////
@@ -385,6 +387,24 @@ func (p *player) Deactivate() {
 	} else {
 		logger.Info(fmt.Sprintf("[ws] player %v → INACTIVE", p.Id()))
 	}
+}
+
+func (p *player) YourMessage(localizer loc.Localizer) template.HTML {
+	if p.IsActive() {
+		return p.Player.YourMessage(localizer)
+	} else {
+		return localizer.Loc("YouDisconnected")
+	}
+	return ""
+}
+
+func (p *player) Message(localizer loc.Localizer) template.HTML {
+	if p.IsActive() {
+		return p.Player.Message(localizer)
+	} else {
+		return localizer.Loc("PlayerDisconnected")
+	}
+	return ""
 }
 
 func (p *player) LabelSlice() []string {

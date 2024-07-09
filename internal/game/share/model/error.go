@@ -22,4 +22,5 @@ var (
 	ErrGameNotStopped        = fmt.Errorf("game not stopped")
 	ErrGameNotStartable      = fmt.Errorf("game not startable")
 	ErrGameMarkedForDeletion = fmt.Errorf("game marked for deletion")
+	ErrMissingAction         = fmt.Errorf("missing action")
 )

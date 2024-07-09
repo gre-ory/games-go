@@ -30,4 +30,7 @@ var (
 	ErrMissingDiscardIndex  = fmt.Errorf("missing discard index")
 	ErrInvalidCardIndex     = fmt.Errorf("invalid card index")
 	ErrInvalidDiscardIndex  = fmt.Errorf("invalid discard index")
+	ErrInvalidCardNumber    = fmt.Errorf("invalid card number")
+	ErrInvalidDiscardNumber = fmt.Errorf("invalid discard number")
+	ErrNoSelectedCard       = fmt.Errorf("no selected card")
 )

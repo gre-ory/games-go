@@ -8,11 +8,12 @@ import (
 type CardColor int
 
 const (
-	CardColor_Blue   CardColor = 1
-	CardColor_Cyan   CardColor = 2
-	CardColor_Green  CardColor = 3
-	CardColor_Yellow CardColor = 4
-	CardColor_Red    CardColor = 5
+	CardColor_Unknown CardColor = iota
+	CardColor_Blue
+	CardColor_Cyan
+	CardColor_Green
+	CardColor_Yellow
+	CardColor_Red
 )
 
 var (
@@ -24,6 +25,22 @@ var (
 		CardColor_Red,
 	}
 )
+
+func CardColorFromValue(value int) CardColor {
+	switch {
+	case value < 0:
+		return CardColor_Blue
+	case value == 0:
+		return CardColor_Cyan
+	case value < 5:
+		return CardColor_Green
+	case value < 9:
+		return CardColor_Yellow
+	case value < 13:
+		return CardColor_Red
+	}
+	return CardColor_Unknown
+}
 
 func (c CardColor) String() string {
 	switch c {
@@ -84,6 +101,8 @@ func (c CardColor) Labels() string {
 }
 
 const (
+	Card_Unknown  = 0
+	Card_Delta    = 10
 	Card_MinValue = -2
 	Card_MaxValue = 12
 )
@@ -110,37 +129,20 @@ var (
 
 type Card int
 
-func CardFromString(value rune) Card {
-	card := Card(value - '0')
-	if card < Card_MinValue || card > Card_MaxValue {
-		panic(ErrInvalidCard)
+func NewCard(value int) Card {
+	color := CardColorFromValue(value)
+	if value < Card_MinValue || value > Card_MaxValue {
+		panic(ErrInvalidCardValue)
 	}
-	return card
+	return Card((int(color) * 100) + value + Card_Delta)
 }
 
-func (c Card) ToRune() rune {
-	// note:
-	// -2 = .
-	// -1 = /
-	// 10 = :
-	// 11 = ;
-	// 12 = <
-	return '0' + rune(c)
+func (c Card) Value() int {
+	return (int(c) % 100) - Card_Delta
 }
 
 func (c Card) Color() CardColor {
-	switch {
-	case c < 0:
-		return CardColor_Blue
-	case c == 0:
-		return CardColor_Cyan
-	case c < 5:
-		return CardColor_Green
-	case c < 9:
-		return CardColor_Yellow
-	default:
-		return CardColor_Red
-	}
+	return CardColor((int(c) / 100))
 }
 
 func (c Card) Labels() string {
@@ -151,5 +153,5 @@ func (c Card) Labels() string {
 }
 
 func (c Card) String() string {
-	return fmt.Sprintf("%d", c, c.Color().String())
+	return fmt.Sprintf("%d%s", c.Value(), c.Color().String())
 }

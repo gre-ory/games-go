@@ -32,7 +32,7 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		playerId := cookie.PlayerId()
 		s.logger.Info(fmt.Sprintf("[api] cookie %s >>> getting player...", playerId), zap.Any("cookie", cookie))
 
-		player, err = s.hub.GetPlayer(playerId)
+		player, err = s.GetPlayer(playerId)
 		if err == nil {
 			s.logger.Info(fmt.Sprintf("[api] player %s already exists", playerId), zap.Any("player", player))
 		} else {
@@ -44,7 +44,7 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 			// wsPlayer := websocket.NewPlayer[model.PlayerId, model.GameId](s.logger, playerId, s.onMessage, s.onPlayerUpdate, s.hub.UnregisterPlayer)
 			ws_player := share_websocket.NewPlayerFromCookie(s.logger, cookie, s.onMessage, s.onPlayerUpdate, nil)
 			player = model.NewPlayer(ws_player)
-			s.hub.RegisterPlayer(player)
+			s.RegisterPlayer(player)
 		}
 
 		s.logger.Info(fmt.Sprintf("[api] player %s >>> connecting...", playerId))
@@ -54,7 +54,7 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 
 		if player.GameId() == "" {
 			s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting games...", playerId))
-			s.broadcastJoinableGamesToPlayer(playerId)
+			s.BroadcastJoinableGamesToPlayer(playerId)
 			return
 		}
 		gameId := player.GameId()
@@ -65,10 +65,10 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting game layout...", playerId))
-		s.broadcastGameLayoutToPlayer(playerId, game)
+		s.BroadcastGameLayoutToPlayer(playerId, game)
 
 		s.logger.Info(fmt.Sprintf("[api] player %s >>> broadcasting game...", playerId))
-		s.broadcastGame(game)
+		s.BroadcastGame(game)
 
 		return
 
@@ -77,5 +77,5 @@ func (s *gameServer) htmx_connect(w http.ResponseWriter, r *http.Request) {
 	// error response
 
 	s.logger.Warn("[api] htmx_connect: FAILED", zap.String("path", r.URL.Path), zap.Error(err))
-	s.renderError(w, err)
+	s.RenderError(w, err)
 }

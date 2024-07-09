@@ -78,7 +78,16 @@ func (s *gameService) PutCard(player *model.Player, columnNumber, rowNumber int)
 	if game.SelectedCard == nil {
 		return nil, model.ErrMissingSelectedCard
 	}
-
+	board, err := s.getBoard(game, player)
+	if err != nil {
+		return nil, err
+	}
+	cardToDiscard, err := board.Put(*game.SelectedCard, columnNumber-1, rowNumber-1)
+	if err != nil {
+		return nil, err
+	}
+	game.DiscardDeck.Add(cardToDiscard)
+	return game, nil
 }
 
 func (s *gameService) DiscardCard(player *model.Player) (*model.Game, error) {
@@ -234,8 +243,8 @@ func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error 
 
 func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
 	switch {
-	case game.Status().IsStopped():
-	case game.Status().IsStarted():
+	case game.IsStopped():
+	case game.IsStarted():
 		// set other player as winner
 		game.SetLoosers(player.Id())
 		game.Stop()
@@ -244,7 +253,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 		if !game.HasPlayers() {
 			game.MarkForDeletion()
 		} else {
-			game.UpdateStatus()
+			game.UpdateJoinStatus()
 		}
 	}
 	return game, nil

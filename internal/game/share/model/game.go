@@ -1,11 +1,13 @@
 package model
 
 import (
+	"html/template"
 	"strings"
 	"time"
 
 	"github.com/gre-ory/games-go/internal/util/dict"
 	"github.com/gre-ory/games-go/internal/util/list"
+	"github.com/gre-ory/games-go/internal/util/loc"
 )
 
 // //////////////////////////////////////////////////
@@ -14,11 +16,17 @@ import (
 type Game[PlayerT Player] interface {
 	Id() GameId
 
+	IsStarted() bool
+	IsStopped() bool
 	Status() GameStatus
 	SetStatus(status GameStatus)
 	MarkForDeletion()
 
 	CreatedAt() time.Time
+
+	CanJoin() bool
+	CanStart() bool
+	UpdateJoinStatus()
 
 	Start()
 	Round() int
@@ -47,7 +55,10 @@ type Game[PlayerT Player] interface {
 	HasPlayer(playerId PlayerId) bool
 	GetPlayer(id PlayerId) (PlayerT, bool)
 	MustGetPlayer(id PlayerId) PlayerT
+	PlayerLabelSlice(id PlayerId) []string
+	PlayerLabels(id PlayerId) string
 
+	IsPlayingPlayer(playerId PlayerId) bool
 	GetPlayingPlayer() (PlayerT, bool)
 	GetPlayingPlayers() []PlayerT
 	GetNonPlayingPlayers() []PlayerT
@@ -64,6 +75,10 @@ type Game[PlayerT Player] interface {
 	SetWinners(winnerIds ...PlayerId)
 	SetTie()
 
+	YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML
+	PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML
+	PlayerStatusIcon(playerId PlayerId) string
+
 	LabelSlice() []string
 	Labels() string
 }
@@ -79,30 +94,42 @@ const (
 // //////////////////////////////////////////////////
 // game
 
-func NewGame[PlayerT Player]() Game[PlayerT] {
+func NewGame[PlayerT Player](minNbPlayer, maxNbPlayer int) Game[PlayerT] {
 	return &game[PlayerT]{
-		id:        GenerateGameId(),
-		status:    GameStatus_JoinableNotStartable,
-		createdAt: time.Now(),
-		players:   make(map[PlayerId]PlayerT),
-		order:     make([][]PlayerId, 0),
-		ranks:     make([][]PlayerId, 0),
-		round:     0,
+		id:          GenerateGameId(),
+		status:      GameStatus_JoinableNotStartable,
+		createdAt:   time.Now(),
+		minNbPlayer: minNbPlayer,
+		maxNbPlayer: maxNbPlayer,
+		players:     make(map[PlayerId]PlayerT),
+		order:       make([][]PlayerId, 0),
+		ranks:       make([][]PlayerId, 0),
+		round:       0,
 	}
 }
 
 type game[PlayerT Player] struct {
-	id        GameId
-	status    GameStatus
-	createdAt time.Time
-	players   map[PlayerId]PlayerT
-	round     int
-	order     [][]PlayerId
-	ranks     [][]PlayerId
+	id          GameId
+	status      GameStatus
+	createdAt   time.Time
+	minNbPlayer int
+	maxNbPlayer int
+	players     map[PlayerId]PlayerT
+	round       int
+	order       [][]PlayerId
+	ranks       [][]PlayerId
 }
 
 func (g *game[PlayerT]) Id() GameId {
 	return g.id
+}
+
+func (g *game[PlayerT]) IsStarted() bool {
+	return g.Status().IsStarted()
+}
+
+func (g *game[PlayerT]) IsStopped() bool {
+	return g.Status().IsStopped()
 }
 
 func (g *game[PlayerT]) Status() GameStatus {
@@ -119,6 +146,33 @@ func (g *game[PlayerT]) MarkForDeletion() {
 
 func (g *game[PlayerT]) CreatedAt() time.Time {
 	return g.createdAt
+}
+
+func (g *game[PlayerT]) CanJoin() bool {
+	return g.maxNbPlayer == 0 || len(g.players) < g.maxNbPlayer
+}
+
+func (g *game[PlayerT]) CanStart() bool {
+	return g.minNbPlayer == 0 || len(g.players) >= g.minNbPlayer
+}
+
+func (g *game[PlayerT]) UpdateJoinStatus() {
+	if !g.CanJoin() {
+		g.SetStatus(GameStatus_NotJoinableAndStartable)
+		for _, player := range g.GetPlayers() {
+			player.SetStatus(PlayerStatus_WaitingToStart)
+		}
+	} else if g.CanStart() {
+		g.SetStatus(GameStatus_JoinableAndStartable)
+		for _, player := range g.GetPlayers() {
+			player.SetStatus(PlayerStatus_WaitingToStart)
+		}
+	} else {
+		g.SetStatus(GameStatus_JoinableNotStartable)
+		for _, player := range g.GetPlayers() {
+			player.SetStatus(PlayerStatus_WaitingToJoin)
+		}
+	}
 }
 
 func (g *game[PlayerT]) Start() {
@@ -263,6 +317,26 @@ func (g *game[PlayerT]) MustGetPlayer(id PlayerId) PlayerT {
 	return player
 }
 
+func (g *game[PlayerT]) PlayerLabelSlice(id PlayerId) []string {
+	player, found := g.GetPlayer(id)
+	if !found {
+		return []string{"error"}
+	}
+	return player.LabelSlice()
+}
+
+func (g *game[PlayerT]) PlayerLabels(id PlayerId) string {
+	return strings.Join(g.PlayerLabelSlice(id), " ")
+}
+
+func (g *game[PlayerT]) IsPlayingPlayer(playerId PlayerId) bool {
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return false
+	}
+	return player.IsPlaying()
+}
+
 func (g *game[PlayerT]) GetPlayingPlayer() (PlayerT, bool) {
 	return dict.First(g.players, func(player PlayerT) bool {
 		return player.Status().IsPlaying()
@@ -399,6 +473,56 @@ func (g *game[PlayerT]) SetTie() {
 	for _, player := range g.players {
 		player.SetTie()
 	}
+
+}
+
+func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	if player.HasResult() {
+		result := player.Result()
+		switch {
+		case result.IsWin():
+			return localizer.Loc("YouWin")
+		case result.IsTie():
+			return localizer.Loc("YouTie")
+		case result.IsLoose():
+			return localizer.Loc("YouLoose")
+		}
+	}
+	return player.YourMessage(localizer)
+}
+
+func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	if player.HasResult() {
+		result := player.Result()
+		switch {
+		case result.IsWin():
+			return localizer.Loc("PlayerWin")
+		case result.IsTie():
+			return localizer.Loc("PlayerTie")
+		case result.IsLoose():
+			return localizer.Loc("PlayerLoose")
+		}
+	}
+	return player.Message(localizer)
+}
+
+func (g *game[PlayerT]) PlayerStatusIcon(playerId PlayerId) string {
+	player, found := g.GetPlayer(playerId)
+	if !found {
+		return ""
+	}
+	if player.HasResult() {
+		return player.Result().Icon()
+	}
+	return player.Status().Icon()
 }
 
 func (g *game[PlayerT]) LabelSlice() []string {

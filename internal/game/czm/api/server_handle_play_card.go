@@ -3,33 +3,25 @@ package api
 import (
 	"go.uber.org/zap"
 
-	"github.com/gre-ory/games-go/internal/util"
-
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 )
 
 func (s *gameServer) HandlePlayCard(player *model.Player, message JsonMessage) error {
 	s.logger.Info("[ws] play_card", zap.Any("message", message))
 
-	if message.CardIndex == nil {
-		return model.ErrMissingCardIndex
+	discardNumber, err := message.DiscardNumber()
+	if err != nil {
+		return err
 	}
-	cardindex := util.ToInt(*message.CardIndex)
 
-	if message.DiscardIndex == nil {
-		return model.ErrMissingDiscardIndex
-	}
-	discardIndex := util.ToInt(*message.DiscardIndex)
-
-	game, err := s.service.PlayCard(player, cardindex, discardIndex)
+	game, err := s.service.PlayCard(player, discardNumber)
 	if err != nil {
 		return err
 	}
 
 	s.logger.Info("[ws] play", zap.Any("game", game))
 
-	// s.broadcastClearToPlayers(game)
-	s.broadcastGame(game)
+	s.BroadcastGame(game)
 
 	// if game.Stopped() {
 	// 	if yes, winnerId := game.HasWinner(); yes {

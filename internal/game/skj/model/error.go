@@ -15,4 +15,5 @@ var (
 	ErrMissingSelectedCard = fmt.Errorf("missing selected card")
 	ErrNotShouldFlip       = fmt.Errorf("not should flip")
 	ErrPlayerBoardNotFound = fmt.Errorf("player board not found")
+	ErrInvalidCardValue    = fmt.Errorf("invalid card value")
 )

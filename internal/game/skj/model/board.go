@@ -46,6 +46,13 @@ func (board *PlayerBoard) Total() int {
 	return result
 }
 
+func (board *PlayerBoard) Put(card Card, columnIndex, rowIndex int) (Card, error) {
+	if columnIndex < 0 || columnIndex >= NbColumn {
+		return Card_Unknown, ErrInvalidColumn
+	}
+	return board.columns[columnIndex].Put(card, rowIndex)
+}
+
 func (board *PlayerBoard) Flip(columnIndex, rowIndex int) error {
 	if columnIndex < 0 || columnIndex >= NbColumn {
 		return ErrInvalidColumn
@@ -106,6 +113,13 @@ func (column *PlayerColumn) IsFlipped() bool {
 		}
 	}
 	return true
+}
+
+func (column *PlayerColumn) Put(card Card, rowIndex int) (Card, error) {
+	if rowIndex < 0 || rowIndex >= NbRow {
+		return 0, ErrInvalidRow
+	}
+	return column.cells[rowIndex].Put(card)
 }
 
 func (column *PlayerColumn) Flip(rowIndex int) error {
@@ -179,6 +193,13 @@ func (cell *PlayerCell) IsFlipped() bool {
 
 func (cell *PlayerCell) CanFlip() bool {
 	return !cell.flipped
+}
+
+func (cell *PlayerCell) Put(card Card) (Card, error) {
+	otherCard := cell.card
+	cell.card = card
+	cell.flipped = true
+	return otherCard, nil
 }
 
 func (cell *PlayerCell) Flip() error {

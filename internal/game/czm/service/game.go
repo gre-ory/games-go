@@ -4,208 +4,73 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/gre-ory/games-go/internal/util/dict"
-	"github.com/gre-ory/games-go/internal/util/list"
-	"github.com/gre-ory/games-go/internal/util/websocket"
-
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 	share_service "github.com/gre-ory/games-go/internal/game/share/service"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
+	"github.com/gre-ory/games-go/internal/util/loc"
 
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 	"github.com/gre-ory/games-go/internal/game/czm/store"
 )
 
 type GameService interface {
-	GetJoinableGames() []*model.Game
-	GetNotJoinableGames(playerId model.PlayerId) []*model.Game
-	GetGame(id model.GameId) (*model.Game, error)
-	CreateGame(player *model.Player) (*model.Game, error)
-	JoinGame(id model.GameId, player *model.Player) (*model.Game, error)
-	StartGame(player *model.Player) (*model.Game, error)
-	SelectCard(player *model.Player, cardIndex int) (*model.Game, error)
-	PlayCard(player *model.Player, cardIndex int, discardIndex int) (*model.Game, error)
-	LeaveGame(player *model.Player) (*model.Game, error)
-	DeleteGame(id model.GameId, playerId model.PlayerId) error
-	WrapData(data websocket.Data, player *model.Player) (bool, any)
+	share_service.GameService[*model.Player, *model.Game]
+
+	SelectCard(player *model.Player, cardNumber int) (*model.Game, error)
+	PlayCard(player *model.Player, discardNumber int) (*model.Game, error)
+
+	WrapData(data share_websocket.Data, player *model.Player) (bool, any)
 }
 
 func NewGameService(logger *zap.Logger, gameStore store.GameStore, playerStore store.PlayerStore) GameService {
+	plugin := NewGamePlugin()
 	return &gameService{
-		GameService_bak: share_service.NewGameService_bak(logger, model.AppId, gameStore),
-		logger:          logger,
-		gameStore:       gameStore,
-		playerStore:     playerStore,
+		GameService: share_service.NewGameService(logger, plugin, gameStore, playerStore),
+		logger:      logger,
 	}
 }
 
 type gameService struct {
-	share_service.GameService_bak[model.PlayerId, model.GameId, *model.Player, *model.Game]
-	logger      *zap.Logger
-	gameStore   store.GameStore
-	playerStore store.PlayerStore
+	share_service.GameService[*model.Player, *model.Game]
+	logger *zap.Logger
 }
 
-func (s *gameService) GetJoinableGames() []*model.Game {
-	games := s.gameStore.ListStatus(model.Joinable)
-	return s.SortGames(games)
-}
-
-func (s *gameService) GetNotJoinableGames(playerId model.PlayerId) []*model.Game {
-	games := make([]*model.Game, 0)
-	games = append(games, s.gameStore.ListStatus(model.NotJoinable)...)
-	games = append(games, s.gameStore.ListStatus(model.Started)...)
-	games = append(games, s.gameStore.ListStatus(model.Stopped)...)
-	games = s.FilterGamesByPlayer(games, playerId)
-	return s.SortGames(games)
-}
-
-func (s *gameService) NewGame() (*model.Game, error) {
-	game := model.NewGame()
-	return s.StoreGame(game)
-}
-
-func (s *gameService) CreateGame(player *model.Player) (*model.Game, error) {
-	game, err := s.NewGame()
+func (s *gameService) SelectCard(player *model.Player, cardNumber int) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
 	if err != nil {
 		return nil, err
 	}
-	return s.joinGame(game, player)
-}
 
-func (s *gameService) JoinGame(id model.GameId, player *model.Player) (*model.Game, error) {
-	return s.OnGame(id, func(game *model.Game) (*model.Game, error) {
-		return s.joinGame(game, player)
-	})
-}
-
-func (s *gameService) joinGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	switch game.Status() {
-	case model.NotJoinable:
-		return nil, model.ErrGameNotJoinable
-	case model.Started:
-		return nil, model.ErrGameAlreadyStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
+	_, err = player.SelectCard(cardNumber)
+	if err != nil {
+		return nil, err
 	}
 
-	if _, err := game.GetPlayer(player.Id()); err == nil {
-		return game, nil
-	}
-	game = game.WithPlayer(player)
-	game.UpdateStatus()
-	return game, nil
-}
-
-func (s *gameService) StartGame(player *model.Player) (*model.Game, error) {
-	return s.OnPlayerGame(player, s.startGame)
-}
-
-func (s *gameService) startGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	switch game.Status() {
-	case model.Started:
-		return nil, model.ErrGameAlreadyStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
-	}
-	if !game.CanStart() {
-		return nil, model.ErrMissingPlayers
-	}
-
-	ids := dict.ConvertToList(game.Players, dict.Key)
-	list.Shuffle(ids)
-	game.PlayerIds = ids
-
-	for i := 0; i < 4; i++ {
-		for _, player := range game.Players {
-			card, err := game.DrawCardDeck.Draw()
-			if err != nil {
-				return nil, err
-			}
-			player.WithCard(card)
-		}
-
-		card, err := game.DrawCardDeck.Draw()
-		if err != nil {
-			return nil, err
-		}
-		game.DiscardCardDecks[i].Add(card)
-	}
-
-	game.SetStatus(model.Started)
-	game.Round = 1
-	game.SetPlayingPlayer()
+	game.SelectedCardNumber = cardNumber
 
 	return game, nil
 }
 
-func (s *gameService) SelectCard(player *model.Player, cardIndex int) (*model.Game, error) {
-	return s.OnPlayerGame(player, func(game *model.Game, player *model.Player) (*model.Game, error) {
-		return s.selectCard(game, player, cardIndex)
-	})
-}
-
-func (s *gameService) selectCard(game *model.Game, player *model.Player, cardIndex int) (*model.Game, error) {
-	switch game.Status() {
-	case model.Joinable, model.NotJoinable:
-		return nil, model.ErrGameNotStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
-	}
-
-	currentPlayer, err := game.GetCurrentPlayer()
+func (s *gameService) PlayCard(player *model.Player, discardNumber int) (*model.Game, error) {
+	game, err := s.getPlayGame(player)
 	if err != nil {
 		return nil, err
 	}
-	if player.Id() != currentPlayer.Id() {
-		return nil, model.ErrWrongPlayer
+	if game.SelectedCardNumber == 0 {
+		return nil, model.ErrNoSelectedCard
 	}
 
-	_, err = player.SelectCard(cardIndex)
+	selectedCard, err := player.PlayCard(game.SelectedCardNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	game.SelectedCardIndex = cardIndex
-
-	return game, nil
-}
-
-func (s *gameService) PlayCard(player *model.Player, cardIndex int, discardIndex int) (*model.Game, error) {
-	return s.OnPlayerGame(player, func(game *model.Game, player *model.Player) (*model.Game, error) {
-		return s.playCard(game, player, cardIndex, discardIndex)
-	})
-}
-
-func (s *gameService) playCard(game *model.Game, player *model.Player, cardIndex int, discardIndex int) (*model.Game, error) {
-	switch game.Status() {
-	case model.Joinable, model.NotJoinable:
-		return nil, model.ErrGameNotStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
+	if discardNumber < 1 || model.NbCardDeck < discardNumber {
+		return nil, model.ErrInvalidDiscardNumber
 	}
 
-	currentPlayer, err := game.GetCurrentPlayer()
-	if err != nil {
-		return nil, err
-	}
-	if player.Id() != currentPlayer.Id() {
-		return nil, model.ErrWrongPlayer
-	}
-
-	card, err := player.PlayCard(cardIndex)
-	if err != nil {
-		return nil, err
-	}
-
-	if discardIndex < 0 || model.NbCardDeck <= discardIndex {
-		return nil, model.ErrInvalidDiscardIndex
-	}
-
-	game.SelectedCardIndex = -1
-	game.DiscardCardDecks[discardIndex].Add(card)
+	game.SelectedCardNumber = 0
+	game.DiscardCardDecks[discardNumber].Add(selectedCard)
 
 	newCard, err := game.DrawCardDeck.Draw()
 	if err != nil {
@@ -213,46 +78,30 @@ func (s *gameService) playCard(game *model.Game, player *model.Player, cardIndex
 	}
 	player.WithCard(newCard)
 
-	if yes, winnerId := game.HasWinner(); yes {
-		s.stopGame(game, winnerId)
-	} else if game.IsTie() {
-		s.stopGame(game, "")
-	} else {
-		game.Round++
-		game.SetPlayingPlayer()
-	}
+	// TODO
+	// if yes, winnerId := game.HasWinner(); yes {
+	// 	s.stopGame(game, winnerId)
+	// } else if game.IsTie() {
+	// 	s.stopGame(game, "")
+	// } else {
+	// 	game.Round++
+	// 	game.SetPlayingPlayer()
+	// }
 
 	return game, nil
 }
 
 func (s *gameService) ValidateMissions(player *model.Player, cardIndex int, discardIndex int) (*model.Game, error) {
-	return s.OnPlayerGame(player, func(game *model.Game, player *model.Player) (*model.Game, error) {
-		return s.validateMissions(game, player)
-	})
-}
-
-func (s *gameService) validateMissions(game *model.Game, player *model.Player) (*model.Game, error) {
-	switch game.Status() {
-	case model.Joinable, model.NotJoinable:
-		return nil, model.ErrGameNotStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
-	}
-
-	currentPlayer, err := game.GetCurrentPlayer()
+	game, err := s.getPlayGame(player)
 	if err != nil {
 		return nil, err
-	}
-	if player.Id() != currentPlayer.Id() {
-		return nil, model.ErrWrongPlayer
 	}
 
 	topCards := game.GetTopCards()
 
 	game.ValidatedMissionIndex = -1
 	for index, mission := range game.Missions {
-		if mission != nil {
+		if mission == nil {
 			continue
 		}
 		if mission.IsCompleted(topCards) {
@@ -271,74 +120,130 @@ func (s *gameService) validateMissions(game *model.Game, player *model.Player) (
 	return game, nil
 }
 
-func (s *gameService) LeaveGame(player *model.Player) (*model.Game, error) {
-	return s.OnPlayerGame(player, s.leaveGame)
-}
-
-func (s *gameService) leaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	s.logger.Info("leaveGame", zap.Any("game", game), zap.Any("player", player))
-	switch game.Status() {
-	case model.Joinable, model.NotJoinable:
-		game = game.WithoutPlayer(player)
-		player.Status = model.WaitingToJoin
-		if len(game.Players) == 0 {
-			s.logger.Info(" -> delete game", zap.Any("game", game), zap.Any("player", player))
-			return nil, s.deleteGame(game)
-		} else {
-			game.UpdateStatus()
-
-			return game, nil
-		}
-	case model.Started:
-		winnerId, err := game.GetOtherPlayerId(player.Id())
-		if err != nil {
-			return nil, err
-		}
-		player.Status = model.WaitingToJoin
-		player.UnsetGameId()
-		return s.stopGame(game, winnerId)
-	case model.Stopped:
-		player.Status = model.WaitingToJoin
-		player.UnsetGameId()
-		return game, nil
-	}
-
-	return game, nil
-}
-
-func (s *gameService) stopGame(game *model.Game, winnerId model.PlayerId) (*model.Game, error) {
-	switch game.Status() {
-	case model.Joinable, model.NotJoinable:
-		return nil, model.ErrGameNotStarted
-	case model.Stopped:
-		return nil, model.ErrGameStopped
-	default:
-	}
-
-	game.SetStatus(model.Stopped)
-	if winnerId != "" {
-		game.WinnerIds = []model.PlayerId{winnerId}
-	}
-
-	return game, nil
-}
-
-func (s *gameService) DeleteGame(id model.GameId, playerId model.PlayerId) error {
-	game, err := s.GetGame(id)
+func (s *gameService) getPlayGame(player *model.Player) (*model.Game, error) {
+	game, err := s.GetGame(player.GameId())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := game.GetPlayer(playerId); err != nil {
-		return err
+	if err := game.Status().CanPlay(); err != nil {
+		return nil, err
 	}
-	return s.deleteGame(game)
+	if !player.Status().IsPlaying() {
+		return nil, share_model.ErrWrongPlayer
+	}
+	return game, nil
 }
 
-func (s *gameService) deleteGame(game *model.Game) error {
-	switch game.Status() {
-	case model.Started:
-		return model.ErrGameNotStopped
-	default:
+func (s *gameService) WrapData(data share_websocket.Data, player *model.Player) (bool, any) {
+	if player == nil {
+		return true, data
 	}
-	return s.gameStore.Delete(game.Id())
+	localizer := loc.NewLocalizer(model.AppId, loc.Language(player.Language()), s.logger)
+	// s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.Id(), player.Language, localizer.Loc("GameTitle", "ABC")))
+	data.With("lang", localizer)
+	if !player.HasGameId() {
+		return true, data
+	}
+	game, err := s.GetGame(player.GameId())
+	if err != nil {
+		return false, nil
+	}
+	return game.WrapData(data, player)
+}
+
+// //////////////////////////////////////////////
+// game plugin
+
+func NewGamePlugin() share_service.GamePlugin[*model.Player, *model.Game] {
+	return &gamePlugin{}
+}
+
+type gamePlugin struct{}
+
+func (p *gamePlugin) CanCreateGame(player *model.Player) error {
+	return nil
+}
+
+func (p *gamePlugin) CreateGame(player *model.Player) (*model.Game, error) {
+	return model.NewGame(), nil
+}
+
+func (p *gamePlugin) CanJoinGame(game *model.Game, player *model.Player) error {
+	return nil
+}
+
+func (p *gamePlugin) JoinGame(game *model.Game, player *model.Player) (*model.Game, error) {
+	game.AttachPlayer(player)
+	return game, nil
+}
+
+func (p *gamePlugin) CanStartGame(game *model.Game) error {
+	if !game.CanStart() {
+		return share_model.ErrMissingPlayers
+	}
+	return nil
+}
+
+func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
+
+	//
+	// draw cards & build player boards
+	//
+
+	// for _, player := range game.GetPlayers() {
+	// 	board := model.NewPlayerBoard()
+	// 	for columnIndex := 0; columnIndex < game.NbColumn; columnIndex++ {
+	// 		column := model.NewPlayerColumn(columnIndex + 1)
+	// 		for rowIndex := 0; rowIndex < game.NbRow; rowIndex++ {
+	// 			card, err := game.DrawDeck.Draw()
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
+	// 			cell := model.NewPlayerCell(columnIndex+1, rowIndex+1, card)
+	// 			column.AddCell(cell)
+	// 		}
+	// 		board.AddColumn(column)
+	// 	}
+	// 	game.AddBoard(player.Id(), board)
+	// }
+
+	//
+	// start game
+	//
+
+	game.SetRandomOrder()
+	game.Start()
+	game.SetPlayingRoundPlayer()
+
+	return game, nil
+}
+
+func (p *gamePlugin) CanStopGame(game *model.Game) error {
+	return nil
+}
+
+func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error {
+	return nil
+}
+
+func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.Game, error) {
+	switch {
+	case game.IsStopped():
+	case game.IsStarted():
+		// set other player as winner
+		game.SetLoosers(player.Id())
+		game.Stop()
+	default:
+		game.DetachPlayer(player)
+		if !game.HasPlayers() {
+			game.MarkForDeletion()
+		} else {
+			game.UpdateJoinStatus()
+		}
+	}
+	return game, nil
+}
+
+func (p *gamePlugin) CanDeleteGame(game *model.Game, playerId share_model.PlayerId) error {
+	return nil
 }

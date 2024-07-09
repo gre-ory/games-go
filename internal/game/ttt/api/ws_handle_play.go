@@ -28,7 +28,7 @@ func (s *gameServer) HandlePlay(player *model.Player, message JsonMessage) error
 	s.logger.Info("[ws] play", zap.Any("game", game))
 
 	// s.broadcastClearToPlayers(game)
-	s.broadcastGame(game)
+	s.BroadcastGame(game)
 
 	// if game.Stopped() {
 	// 	if yes, winnerId := game.HasWinner(); yes {

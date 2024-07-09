@@ -8,9 +8,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/gre-ory/games-go/internal/util"
+
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 
-	"github.com/gre-ory/games-go/internal/game/ttt/model"
+	"github.com/gre-ory/games-go/internal/game/skj/model"
 )
 
 func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
@@ -29,11 +31,11 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 		}
 
 		if jsonMessage.Action == "" {
-			err = model.ErrMissingAction
+			err = share_model.ErrMissingAction
 			break
 		}
 
-		player, err = s.hub.GetPlayer(playerId)
+		player, err = s.GetPlayer(playerId)
 		if err != nil {
 			s.logger.Info("[DEBUG] player not founf: " + err.Error())
 			break
@@ -55,27 +57,69 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 			err = s.HandleJoinGame(player, gameId)
 		case "start-game":
 			err = s.HandleStartGame(player)
-		case "flip":
-			err = s.HandleFlip(player, jsonMessage)
+		case "draw-discard-card":
+			err = s.HandleDrawDiscardCard(player)
+		case "draw-card":
+			err = s.HandleDrawCard(player)
+		case "put-card":
+			err = s.HandlePutCard(player, jsonMessage)
+		case "discard-card":
+			err = s.HandleDiscardCard(player)
+		case "flip-card":
+			err = s.HandleFlipCard(player, jsonMessage)
 		case "leave-game":
 			err = s.HandleLeaveGame(player)
 		default:
-			err = model.ErrMissingAction
+			err = share_model.ErrMissingAction
 		}
 	}
 
 	if err != nil {
-		s.broadcastErrorToPlayer(playerId, err)
+		s.BroadcastErrorToPlayer(playerId, err)
 	}
 }
 
 type JsonMessage struct {
 	// Headers    *JsonHeaders `json:"HEADERS,omitempty"`
-	Action       string `json:"action,omitempty"`
-	PlayerName   string `json:"name,omitempty"`
-	GameId       string `json:"game,omitempty"`
-	ColumnNumber string `json:"column,omitempty"`
-	RowNumber    string `json:"row,omitempty"`
+	Action          string `json:"action,omitempty"`
+	PlayerName      string `json:"name,omitempty"`
+	GameId          string `json:"game,omitempty"`
+	ColumnNumberStr string `json:"column,omitempty"`
+	RowNumberStr    string `json:"row,omitempty"`
+}
+
+func (j *JsonMessage) ColumnNumber() (int, error) {
+	if j.ColumnNumberStr == "" {
+		return 0, model.ErrInvalidColumn
+	}
+	columnNumber := util.ToInt(j.ColumnNumberStr)
+	if columnNumber == 0 {
+		return 0, model.ErrInvalidColumn
+	}
+	return columnNumber, nil
+}
+
+func (j *JsonMessage) RowNumber() (int, error) {
+	if j.RowNumberStr == "" {
+		return 0, model.ErrInvalidRow
+	}
+	rowNumber := util.ToInt(j.RowNumberStr)
+	if rowNumber == 0 {
+		return 0, model.ErrInvalidRow
+	}
+	return rowNumber, nil
+}
+
+func (j *JsonMessage) Cell() (int, int, error) {
+	columnNumber, err := j.ColumnNumber()
+	if err != nil {
+		return 0, 0, err
+	}
+	rowNumber, err := j.RowNumber()
+	if err != nil {
+		return 0, 0, err
+	}
+	return columnNumber, rowNumber, nil
 }
 
 type JsonHeaders struct {

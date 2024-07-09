@@ -8,10 +8,13 @@ import (
 
 	"go.uber.org/zap"
 
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	"github.com/gre-ory/games-go/internal/util"
+
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 )
 
-func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
+func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 
 	var jsonMessage JsonMessage
 	var player *model.Player
@@ -27,11 +30,11 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 		}
 
 		if jsonMessage.Action == "" {
-			err = model.ErrMissingAction
+			err = share_model.ErrMissingAction
 			break
 		}
 
-		player, err = s.hub.GetPlayer(playerId)
+		player, err = s.GetPlayer(playerId)
 		if err != nil {
 			s.logger.Info("[DEBUG] player not founf: " + err.Error())
 			break
@@ -47,7 +50,7 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 		case "create-game":
 			err = s.HandleCreateGame(player)
 		case "join-game":
-			gameId := model.GameId(jsonMessage.GameId)
+			gameId := share_model.GameId(jsonMessage.GameId)
 			err = s.HandleJoinGame(player, gameId)
 		case "start-game":
 			err = s.HandleStartGame(player)
@@ -63,17 +66,39 @@ func (s *gameServer) onMessage(playerId model.PlayerId, message []byte) {
 	}
 
 	if err != nil {
-		s.broadcastErrorToPlayer(playerId, err)
+		s.BroadcastErrorToPlayer(playerId, err)
 	}
 }
 
 type JsonMessage struct {
 	// Headers    *JsonHeaders `json:"HEADERS,omitempty"`
-	Action       string  `json:"action,omitempty"`
-	PlayerName   string  `json:"name,omitempty"`
-	GameId       string  `json:"game,omitempty"`
-	CardIndex    *string `json:"card,omitempty"`
-	DiscardIndex *string `json:"discard,omitempty"`
+	Action           string `json:"action,omitempty"`
+	PlayerName       string `json:"name,omitempty"`
+	GameId           string `json:"game,omitempty"`
+	CardNumberStr    string `json:"card,omitempty"`
+	DiscardNumberStr string `json:"discard,omitempty"`
+}
+
+func (j *JsonMessage) CardNumber() (int, error) {
+	if j.CardNumberStr == "" {
+		return 0, model.ErrInvalidCardNumber
+	}
+	cardNumber := util.ToInt(j.CardNumberStr)
+	if cardNumber == 0 {
+		return 0, model.ErrInvalidCardNumber
+	}
+	return cardNumber, nil
+}
+
+func (j *JsonMessage) DiscardNumber() (int, error) {
+	if j.DiscardNumberStr == "" {
+		return 0, model.ErrInvalidDiscardNumber
+	}
+	discardNumber := util.ToInt(j.DiscardNumberStr)
+	if discardNumber == 0 {
+		return 0, model.ErrInvalidDiscardNumber
+	}
+	return discardNumber, nil
 }
 
 type JsonHeaders struct {
