@@ -21,6 +21,8 @@ type Game[PlayerT Player] interface {
 	WasStarted() bool
 	Status() GameStatus
 	SetStatus(status GameStatus)
+	SetStarted()
+	SetStopped()
 	MarkForDeletion()
 
 	CreatedAt() time.Time
@@ -29,8 +31,8 @@ type Game[PlayerT Player] interface {
 	CanStart() bool
 	UpdateJoinStatus()
 
-	Start()
 	Round() int
+	FirstRound()
 	NextRound()
 	Order() [][]PlayerId
 	SetOrder(order [][]PlayerId)
@@ -45,7 +47,6 @@ type Game[PlayerT Player] interface {
 	RoundPlayer() PlayerT
 	SetPlayingRoundPlayers()
 	SetPlayingRoundPlayer()
-	Stop()
 
 	HasPlayers() bool
 	NbPlayer() int
@@ -145,6 +146,14 @@ func (g *game[PlayerT]) SetStatus(status GameStatus) {
 	g.status = status
 }
 
+func (g *game[PlayerT]) SetStarted() {
+	g.status = GameStatus_Started
+}
+
+func (g *game[PlayerT]) SetStopped() {
+	g.status = GameStatus_Stopped
+}
+
 func (g *game[PlayerT]) MarkForDeletion() {
 	g.SetStatus(GameStatus_MarkedForDeletion)
 }
@@ -182,11 +191,15 @@ func (g *game[PlayerT]) UpdateJoinStatus() {
 
 func (g *game[PlayerT]) Start() {
 	g.SetStatus(GameStatus_Started)
-	g.round = 1
+
 }
 
 func (g *game[PlayerT]) Round() int {
 	return g.round
+}
+
+func (g *game[PlayerT]) FirstRound() {
+	g.round = 1
 }
 
 func (g *game[PlayerT]) NextRound() {

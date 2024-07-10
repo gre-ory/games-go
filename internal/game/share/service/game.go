@@ -51,6 +51,7 @@ type GamePlugin[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
 	StartGame(game GameT) (GameT, error)
 
 	CanStopGame(game GameT) error
+	StopGame(game GameT) (GameT, error)
 
 	CanLeaveGame(game GameT, player PlayerT) error
 	LeaveGame(game GameT, player PlayerT) (GameT, error)
@@ -215,8 +216,9 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 	if err != nil {
 		return s.empty, err
 	}
-
-	game.AttachPlayer(player)
+	if !player.HasGameId() {
+		game.AttachPlayer(player)
+	}
 	game.UpdateJoinStatus()
 
 	//
@@ -254,17 +256,12 @@ func (s *gameService[PlayerT, GameT]) StartPlayerGame(player PlayerT) (GameT, er
 func (s *gameService[PlayerT, GameT]) StartGame(game GameT) (GameT, error) {
 
 	//
-	// check status
+	// preliminary checks
 	//
 
 	if err := game.Status().CanStart(); err != nil {
 		return s.empty, err
 	}
-
-	//
-	// preliminary checks
-	//
-
 	if err := s.plugin.CanStartGame(game); err != nil {
 		return s.empty, err
 	}
@@ -273,14 +270,19 @@ func (s *gameService[PlayerT, GameT]) StartGame(game GameT) (GameT, error) {
 	// start game
 	//
 
-	game.SetStatus(model.GameStatus_Started)
-	game.Start()
+	game, err := s.plugin.StartGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+	if !game.IsStarted() {
+		game.SetStarted()
+	}
 
 	//
 	// save game
 	//
 
-	game, err := s.SaveGame(game)
+	game, err = s.SaveGame(game)
 	if err != nil {
 		return s.empty, err
 	}
@@ -339,10 +341,10 @@ func (s *gameService[PlayerT, GameT]) LeaveGame(game GameT, player PlayerT) (Gam
 	if err != nil {
 		return s.empty, err
 	}
-
-	game.DetachPlayer(player)
+	if player.HasGameId() {
+		game.UpdateJoinStatus()
+	}
 	game.UpdateJoinStatus()
-
 	player.SetStatus(model.PlayerStatus_WaitingToJoin)
 
 	//
@@ -388,13 +390,19 @@ func (s *gameService[PlayerT, GameT]) StopGame(game GameT) (GameT, error) {
 	// stop game
 	//
 
-	game.Stop()
+	game, err := s.plugin.StopGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+	if !game.IsStopped() {
+		game.SetStopped()
+	}
 
 	//
 	// store game
 	//
 
-	game, err := s.storeGame(game)
+	game, err = s.storeGame(game)
 	if err != nil {
 		return s.empty, err
 	}

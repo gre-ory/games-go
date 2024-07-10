@@ -219,11 +219,16 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 	}
 
 	//
-	// start game
+	// set random order
 	//
 
 	game.SetRandomOrder()
-	game.Start()
+
+	//
+	// set first playing player
+	//
+
+	game.FirstRound()
 	game.SetPlayingRoundPlayer()
 
 	return game, nil
@@ -231,6 +236,10 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 
 func (p *gamePlugin) CanStopGame(game *model.Game) error {
 	return nil
+}
+
+func (p *gamePlugin) StopGame(game *model.Game) (*model.Game, error) {
+	return game, nil
 }
 
 func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error {
@@ -243,7 +252,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 	case game.IsStarted():
 		// set other player as winner
 		game.SetLoosers(player.Id())
-		game.Stop()
+		game.SetStopped()
 	default:
 		game.DetachPlayer(player)
 		if !game.HasPlayers() {

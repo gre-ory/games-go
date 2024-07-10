@@ -184,32 +184,16 @@ func (p *gamePlugin) CanStartGame(game *model.Game) error {
 func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 
 	//
-	// draw cards & build player boards
-	//
-
-	// for _, player := range game.Players() {
-	// 	board := model.NewPlayerBoard()
-	// 	for columnIndex := 0; columnIndex < game.NbColumn; columnIndex++ {
-	// 		column := model.NewPlayerColumn(columnIndex + 1)
-	// 		for rowIndex := 0; rowIndex < game.NbRow; rowIndex++ {
-	// 			card, err := game.DrawDeck.Draw()
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-	// 			cell := model.NewPlayerCell(columnIndex+1, rowIndex+1, card)
-	// 			column.AddCell(cell)
-	// 		}
-	// 		board.AddColumn(column)
-	// 	}
-	// 	game.AddBoard(player.Id(), board)
-	// }
-
-	//
-	// start game
+	// set random order
 	//
 
 	game.SetRandomOrder()
-	game.Start()
+
+	//
+	// set first playing player
+	//
+
+	game.FirstRound()
 	game.SetPlayingRoundPlayer()
 
 	return game, nil
@@ -217,6 +201,10 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 
 func (p *gamePlugin) CanStopGame(game *model.Game) error {
 	return nil
+}
+
+func (p *gamePlugin) StopGame(game *model.Game) (*model.Game, error) {
+	return game, nil
 }
 
 func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error {
@@ -229,7 +217,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 	case game.IsStarted():
 		// set other player as winner
 		game.SetLoosers(player.Id())
-		game.Stop()
+		game.SetStopped()
 	default:
 		game.DetachPlayer(player)
 		if !game.HasPlayers() {

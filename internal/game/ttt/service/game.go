@@ -94,9 +94,7 @@ func (p *gamePlugin) CanCreateGame(player *model.Player) error {
 }
 
 func (p *gamePlugin) CreateGame(player *model.Player) (*model.Game, error) {
-	game := model.NewGame(3, 3)
-	game.AttachPlayer(player)
-	return game, nil
+	return model.NewGame(3, 3), nil
 }
 
 func (p *gamePlugin) CanJoinGame(game *model.Game, player *model.Player) error {
@@ -104,7 +102,6 @@ func (p *gamePlugin) CanJoinGame(game *model.Game, player *model.Player) error {
 }
 
 func (p *gamePlugin) JoinGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	game.AttachPlayer(player)
 	return game, nil
 }
 
@@ -116,11 +113,20 @@ func (p *gamePlugin) CanStartGame(game *model.Game) error {
 }
 
 func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
+
+	//
+	// set random order
+	//
+
 	game.SetRandomOrder()
 	game.OrderedPlayer(0).SetSymbol(model.PLAYER_ONE_SYMBOL)
 	game.OrderedPlayer(1).SetSymbol(model.PLAYER_TWO_SYMBOL)
 
-	game.Start()
+	//
+	// set first playing player
+	//
+
+	game.FirstRound()
 	game.SetPlayingRoundPlayer()
 
 	return game, nil
@@ -128,6 +134,10 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 
 func (p *gamePlugin) CanStopGame(game *model.Game) error {
 	return nil
+}
+
+func (p *gamePlugin) StopGame(game *model.Game) (*model.Game, error) {
+	return game, nil
 }
 
 func (p *gamePlugin) CanLeaveGame(game *model.Game, player *model.Player) error {
@@ -140,7 +150,7 @@ func (p *gamePlugin) LeaveGame(game *model.Game, player *model.Player) (*model.G
 	case game.IsStarted():
 		// set current player as looser
 		game.SetLoosers(player.Id())
-		game.Stop()
+		game.SetStopped()
 	default:
 		game.DetachPlayer(player)
 		if !game.HasPlayers() {
