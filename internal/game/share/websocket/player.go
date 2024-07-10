@@ -11,8 +11,9 @@ import (
 	ws "github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
-	"github.com/gre-ory/games-go/internal/game/share/model"
 	"github.com/gre-ory/games-go/internal/util/loc"
+
+	"github.com/gre-ory/games-go/internal/game/share/model"
 )
 
 // //////////////////////////////////////////////////
@@ -395,7 +396,6 @@ func (p *player) YourMessage(localizer loc.Localizer) template.HTML {
 	} else {
 		return localizer.Loc("YouDisconnected")
 	}
-	return ""
 }
 
 func (p *player) Message(localizer loc.Localizer) template.HTML {
@@ -404,7 +404,6 @@ func (p *player) Message(localizer loc.Localizer) template.HTML {
 	} else {
 		return localizer.Loc("PlayerDisconnected")
 	}
-	return ""
 }
 
 func (p *player) LabelSlice() []string {

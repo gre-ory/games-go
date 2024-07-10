@@ -108,7 +108,7 @@ func (h *hub[PlayerT]) GetPlayer(id model.PlayerId) (PlayerT, error) {
 		return player, nil
 	}
 	var empty PlayerT
-	return empty, ErrPlayerNotFound
+	return empty, model.ErrPlayerNotFound
 }
 
 // //////////////////////////////////////////////////
@@ -154,11 +154,7 @@ func (h *hub[PlayerT]) onUnregisterPlayer(id model.PlayerId) {
 	}()
 
 	h.logger.Info(fmt.Sprintf("[unregister] (-) player %v", id))
-	// if player, ok := h.players[id]; ok {
-	if _, ok := h.players[id]; ok {
-		delete(h.players, id)
-		// player.Close(h.logger)
-	}
+	delete(h.players, id)
 }
 
 func (h *hub[PlayerT]) UpdatePlayer(player PlayerT) {

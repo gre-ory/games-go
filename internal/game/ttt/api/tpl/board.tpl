@@ -1,7 +1,7 @@
 {{- define "board" }}
 {{- $lang := .lang }}
-{{- if or .game.Started .game.Stopped }}
-{{- $playing := .player.Playing }}
+{{- if .game.WasStarted }}
+{{- $playing := .player.IsPlaying }}
 <div id="board" class="{{ .player.Labels }}" hx-swap-oob="outerHTML">
     <div class="board">
         {{- range $y, $row := .game.Rows }}
@@ -19,7 +19,7 @@
         {{- end }}
     </div>
     <div class="center">
-        {{- if .game.Stopped }}
+        {{- if .game.IsStopped }}
             <button ws-send data-action="create-game">{{ $lang.Loc "NewGameAction" }}</button>
         {{- end }}
         <button ws-send data-action="leave-game">{{ $lang.Loc "LeaveAction" }}</button>

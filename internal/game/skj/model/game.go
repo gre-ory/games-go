@@ -56,7 +56,7 @@ func (g *Game) WrapData(data share_websocket.Data, player *Player) (bool, any) {
 	if playerId == "" {
 		return true, data
 	}
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return false, nil
 	}

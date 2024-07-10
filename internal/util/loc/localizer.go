@@ -5,7 +5,6 @@ import (
 	"html/template"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"go.uber.org/zap"
 )
 
 // //////////////////////////////////////////////////
@@ -20,7 +19,7 @@ type Localizer interface {
 // //////////////////////////////////////////////////
 // constructor
 
-func NewLocalizer(appId AppId, lang Language, logger *zap.Logger) Localizer {
+func NewLocalizer(appId AppId, lang Language) Localizer {
 	app := GetApp(appId)
 	localizers := make([]*i18n.Localizer, 2)
 	if localizer := app.GetLocalizer(lang); localizer != nil {
@@ -32,7 +31,6 @@ func NewLocalizer(appId AppId, lang Language, logger *zap.Logger) Localizer {
 	return &localizer{
 		AppId:      appId,
 		Language:   lang,
-		logger:     logger,
 		localizers: localizers,
 	}
 }
@@ -43,7 +41,6 @@ func NewLocalizer(appId AppId, lang Language, logger *zap.Logger) Localizer {
 type localizer struct {
 	AppId      AppId
 	Language   Language
-	logger     *zap.Logger
 	localizers []*i18n.Localizer
 }
 
@@ -56,7 +53,6 @@ func (l *localizer) Loc(id string, args ...any) template.HTML {
 	for i, arg := range args {
 		data[fmt.Sprintf("arg%d", i+1)] = arg
 	}
-	// l.logger.Info(fmt.Sprintf("[loc] %s: %#v \n", id, data))
 	return l.Localize(id, data)
 }
 

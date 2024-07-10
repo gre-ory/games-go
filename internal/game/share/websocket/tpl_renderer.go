@@ -17,7 +17,6 @@ func NewTplRenderer[PlayerT any](acceptFn func(player PlayerT) (bool, any), rend
 }
 
 type tplRenderer[PlayerT any] struct {
-	name     string
 	acceptFn func(player PlayerT) (bool, any)
 	renderFn func(w io.Writer, data any)
 }

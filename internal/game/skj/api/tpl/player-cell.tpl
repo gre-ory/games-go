@@ -3,7 +3,7 @@
         <div class="{{ .Labels }} select" ws-send data-action="flip" data-column="{{ .Column }}" data-row="{{ .Row }}">
     {{- else if .IsEmpty }}
         <div class="{{ .Labels }}">
-    {{- else }}
+    {{- end }}
         {{- if .IsVisible }}
             {{ .Card }}
         {{- else }}

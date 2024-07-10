@@ -6,7 +6,7 @@
             <div class="new-game col-1 item">
                 <div class="title center">{{ $lang.Loc "Lobby" }}</div>
                 <div class="content left">
-                    {{- range $id, $player := .waiting_players }}
+                    {{- range .waiting_players }}
                     <div class="badge user player waiting">
                         {{- if ne .Avatar 0 }}
                             <div class="avatar-{{ .Avatar }} xs"></div>
@@ -25,8 +25,8 @@
                     <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
-                        {{- range $id, $player := .Players }}
-                            <div class="badge user {{ $game.PlayerLabels $id }}">
+                        {{- range .Players }}
+                            <div class="badge user {{ $game.PlayerLabels .Id }}">
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}
@@ -60,8 +60,8 @@
                     <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
-                        {{- range $id, $player := .Players }}
-                            <div class="badge user {{ $game.PlayerLabels $id }}">
+                        {{- range .Players }}
+                            <div class="badge user {{ $game.PlayerLabels .Id }}">
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}

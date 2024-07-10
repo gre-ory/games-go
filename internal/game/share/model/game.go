@@ -18,6 +18,7 @@ type Game[PlayerT Player] interface {
 
 	IsStarted() bool
 	IsStopped() bool
+	WasStarted() bool
 	Status() GameStatus
 	SetStatus(status GameStatus)
 	MarkForDeletion()
@@ -34,34 +35,34 @@ type Game[PlayerT Player] interface {
 	Order() [][]PlayerId
 	SetOrder(order [][]PlayerId)
 	SetRandomOrder()
-	GetOrderedPlayerIds(index int) []PlayerId
-	GetOrderedPlayers(index int) []PlayerT
-	GetOrderedPlayerId(index int) PlayerId
-	GetOrderedPlayer(index int) PlayerT
-	GetRoundPlayerIds() []PlayerId
-	GetRoundPlayerId() PlayerId
-	GetRoundPlayers() []PlayerT
-	GetRoundPlayer() PlayerT
+	OrderedPlayerIds(index int) []PlayerId
+	OrderedPlayers(index int) []PlayerT
+	OrderedPlayerId(index int) PlayerId
+	OrderedPlayer(index int) PlayerT
+	RoundPlayerIds() []PlayerId
+	RoundPlayerId() PlayerId
+	RoundPlayers() []PlayerT
+	RoundPlayer() PlayerT
 	SetPlayingRoundPlayers()
 	SetPlayingRoundPlayer()
 	Stop()
 
 	HasPlayers() bool
 	NbPlayer() int
-	GetPlayers() []PlayerT
+	Players() []PlayerT
 	FilterPlayers(filterFn func(player PlayerT) bool) []PlayerT
 	AttachPlayer(player PlayerT)
 	DetachPlayer(player PlayerT)
 	HasPlayer(playerId PlayerId) bool
-	GetPlayer(id PlayerId) (PlayerT, bool)
-	MustGetPlayer(id PlayerId) PlayerT
+	Player(id PlayerId) (PlayerT, bool)
+	MustPlayer(id PlayerId) PlayerT
 	PlayerLabelSlice(id PlayerId) []string
 	PlayerLabels(id PlayerId) string
 
 	IsPlayingPlayer(playerId PlayerId) bool
-	GetPlayingPlayer() (PlayerT, bool)
-	GetPlayingPlayers() []PlayerT
-	GetNonPlayingPlayers() []PlayerT
+	PlayingPlayer() (PlayerT, bool)
+	PlayingPlayers() []PlayerT
+	NonPlayingPlayers() []PlayerT
 	SetPlayingPlayer(playerIds ...PlayerId)
 
 	RankIdFn(leftId, rightId PlayerId) RankResult
@@ -132,6 +133,10 @@ func (g *game[PlayerT]) IsStopped() bool {
 	return g.Status().IsStopped()
 }
 
+func (g *game[PlayerT]) WasStarted() bool {
+	return g.IsStarted() || g.IsStopped()
+}
+
 func (g *game[PlayerT]) Status() GameStatus {
 	return g.status
 }
@@ -153,23 +158,23 @@ func (g *game[PlayerT]) CanJoin() bool {
 }
 
 func (g *game[PlayerT]) CanStart() bool {
-	return g.minNbPlayer == 0 || len(g.players) >= g.minNbPlayer
+	return len(g.players) >= g.minNbPlayer
 }
 
 func (g *game[PlayerT]) UpdateJoinStatus() {
 	if !g.CanJoin() {
 		g.SetStatus(GameStatus_NotJoinableAndStartable)
-		for _, player := range g.GetPlayers() {
+		for _, player := range g.Players() {
 			player.SetStatus(PlayerStatus_WaitingToStart)
 		}
 	} else if g.CanStart() {
 		g.SetStatus(GameStatus_JoinableAndStartable)
-		for _, player := range g.GetPlayers() {
+		for _, player := range g.Players() {
 			player.SetStatus(PlayerStatus_WaitingToStart)
 		}
 	} else {
 		g.SetStatus(GameStatus_JoinableNotStartable)
-		for _, player := range g.GetPlayers() {
+		for _, player := range g.Players() {
 			player.SetStatus(PlayerStatus_WaitingToJoin)
 		}
 	}
@@ -213,57 +218,57 @@ func (g *game[PlayerT]) SetRandomOrder() {
 	g.SetOrder(order)
 }
 
-func (g *game[PlayerT]) GetOrderedPlayerIds(index int) []PlayerId {
+func (g *game[PlayerT]) OrderedPlayerIds(index int) []PlayerId {
 	return g.order[index%len(g.order)]
 }
 
-func (g *game[PlayerT]) GetOrderedPlayers(index int) []PlayerT {
-	playerIds := g.GetOrderedPlayerIds(index)
+func (g *game[PlayerT]) OrderedPlayers(index int) []PlayerT {
+	playerIds := g.OrderedPlayerIds(index)
 	return list.Convert(playerIds, func(playerId PlayerId) PlayerT {
-		return g.MustGetPlayer(playerId)
+		return g.MustPlayer(playerId)
 	})
 }
 
-func (g *game[PlayerT]) GetOrderedPlayerId(index int) PlayerId {
-	playerIds := g.GetOrderedPlayerIds(index)
+func (g *game[PlayerT]) OrderedPlayerId(index int) PlayerId {
+	playerIds := g.OrderedPlayerIds(index)
 	if len(playerIds) == 0 {
 		panic(ErrPlayerNotFound)
 	}
 	return playerIds[0]
 }
 
-func (g *game[PlayerT]) GetOrderedPlayer(index int) PlayerT {
-	playerId := g.GetOrderedPlayerId(index)
-	return g.MustGetPlayer(playerId)
+func (g *game[PlayerT]) OrderedPlayer(index int) PlayerT {
+	playerId := g.OrderedPlayerId(index)
+	return g.MustPlayer(playerId)
 }
 
-func (g *game[PlayerT]) GetRoundPlayerIds() []PlayerId {
+func (g *game[PlayerT]) RoundPlayerIds() []PlayerId {
 	orderIndex := g.Round() % g.NbPlayer()
 	return g.order[orderIndex]
 }
 
-func (g *game[PlayerT]) GetRoundPlayerId() PlayerId {
-	playerIds := g.GetRoundPlayerIds()
+func (g *game[PlayerT]) RoundPlayerId() PlayerId {
+	playerIds := g.RoundPlayerIds()
 	if len(playerIds) == 0 {
 		panic(ErrPlayerNotFound)
 	}
 	return playerIds[0]
 }
 
-func (g *game[PlayerT]) GetRoundPlayers() []PlayerT {
-	playerIds := g.GetRoundPlayerIds()
+func (g *game[PlayerT]) RoundPlayers() []PlayerT {
+	playerIds := g.RoundPlayerIds()
 	return list.Convert(playerIds, func(playerId PlayerId) PlayerT {
-		return g.MustGetPlayer(playerId)
+		return g.MustPlayer(playerId)
 	})
 }
 
-func (g *game[PlayerT]) GetRoundPlayer() PlayerT {
-	playerId := g.GetRoundPlayerId()
-	return g.MustGetPlayer(playerId)
+func (g *game[PlayerT]) RoundPlayer() PlayerT {
+	playerId := g.RoundPlayerId()
+	return g.MustPlayer(playerId)
 }
 
 func (g *game[PlayerT]) SetPlayingRoundPlayers() {
-	g.SetPlayingPlayer(g.GetRoundPlayerIds()...)
+	g.SetPlayingPlayer(g.RoundPlayerIds()...)
 }
 
 func (g *game[PlayerT]) SetPlayingRoundPlayer() {
@@ -283,7 +288,7 @@ func (g *game[PlayerT]) NbPlayer() int {
 	return len(g.players)
 }
 
-func (g *game[PlayerT]) GetPlayers() []PlayerT {
+func (g *game[PlayerT]) Players() []PlayerT {
 	return dict.Values(g.players)
 }
 
@@ -305,12 +310,12 @@ func (g *game[PlayerT]) HasPlayer(playerId PlayerId) bool {
 	return dict.ContainsKey(g.players, playerId)
 }
 
-func (g *game[PlayerT]) GetPlayer(id PlayerId) (PlayerT, bool) {
+func (g *game[PlayerT]) Player(id PlayerId) (PlayerT, bool) {
 	return dict.Get(g.players, id)
 }
 
-func (g *game[PlayerT]) MustGetPlayer(id PlayerId) PlayerT {
-	player, found := g.GetPlayer(id)
+func (g *game[PlayerT]) MustPlayer(id PlayerId) PlayerT {
+	player, found := g.Player(id)
 	if !found {
 		panic(ErrPlayerNotFound)
 	}
@@ -318,7 +323,7 @@ func (g *game[PlayerT]) MustGetPlayer(id PlayerId) PlayerT {
 }
 
 func (g *game[PlayerT]) PlayerLabelSlice(id PlayerId) []string {
-	player, found := g.GetPlayer(id)
+	player, found := g.Player(id)
 	if !found {
 		return []string{"error"}
 	}
@@ -330,26 +335,26 @@ func (g *game[PlayerT]) PlayerLabels(id PlayerId) string {
 }
 
 func (g *game[PlayerT]) IsPlayingPlayer(playerId PlayerId) bool {
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return false
 	}
 	return player.IsPlaying()
 }
 
-func (g *game[PlayerT]) GetPlayingPlayer() (PlayerT, bool) {
+func (g *game[PlayerT]) PlayingPlayer() (PlayerT, bool) {
 	return dict.First(g.players, func(player PlayerT) bool {
 		return player.Status().IsPlaying()
 	})
 }
 
-func (g *game[PlayerT]) GetPlayingPlayers() []PlayerT {
+func (g *game[PlayerT]) PlayingPlayers() []PlayerT {
 	return dict.Filter(g.players, func(player PlayerT) bool {
 		return player.Status().IsPlaying()
 	})
 }
 
-func (g *game[PlayerT]) GetNonPlayingPlayers() []PlayerT {
+func (g *game[PlayerT]) NonPlayingPlayers() []PlayerT {
 	return dict.Filter(g.players, func(player PlayerT) bool {
 		return player.Status().IsWaitingToPlay()
 	})
@@ -371,8 +376,8 @@ func (g *game[PlayerT]) SetPlayingPlayer(playerIds ...PlayerId) {
 }
 
 func (g *game[PlayerT]) RankIdFn(leftId, rightId PlayerId) RankResult {
-	left, leftFound := g.GetPlayer(leftId)
-	right, rightFound := g.GetPlayer(rightId)
+	left, leftFound := g.Player(leftId)
+	right, rightFound := g.Player(rightId)
 	if !leftFound && !rightFound {
 		return RankResult_Equal
 	} else if leftFound && !rightFound {
@@ -429,7 +434,7 @@ func (g *game[PlayerT]) RankPlayers() {
 
 	for rankIndex, playerIds := range ranks {
 		for _, playerId := range playerIds {
-			player, found := g.GetPlayer(playerId)
+			player, found := g.Player(playerId)
 			if !found {
 				panic(ErrPlayerNotFound)
 			}
@@ -477,7 +482,7 @@ func (g *game[PlayerT]) SetTie() {
 }
 
 func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
@@ -496,7 +501,7 @@ func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId Play
 }
 
 func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return localizer.Loc("Error", ErrPlayerNotFound.Error())
 	}
@@ -515,7 +520,7 @@ func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId
 }
 
 func (g *game[PlayerT]) PlayerStatusIcon(playerId PlayerId) string {
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return ""
 	}

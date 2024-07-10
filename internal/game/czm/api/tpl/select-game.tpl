@@ -25,8 +25,8 @@
                     <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
-                        {{- range $id, $player := .Players }}
-                            <div class="badge user {{ $game.PlayerLabels $id }}">
+                        {{- range .Players }}
+                            <div class="badge user {{ $game.PlayerLabels .Id }}">
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}
@@ -60,8 +60,8 @@
                     <div class="title center">{{ $lang.Loc "GameTitle" .Id }}</div>
                     <div class="content">
                         <div class="left">
-                        {{- range $id, $player := .Players }}
-                            <div class="badge user {{ $game.PlayerLabels $id }}">
+                        {{- range .Players }}
+                            <div class="badge user {{ $game.PlayerLabels .Id }}">
                                 {{- if ne .Avatar 0 }}
                                     <div class="avatar-{{ .Avatar }} xs"></div>
                                 {{- end }}

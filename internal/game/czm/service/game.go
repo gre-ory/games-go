@@ -7,7 +7,6 @@ import (
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 	share_service "github.com/gre-ory/games-go/internal/game/share/service"
 	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
-	"github.com/gre-ory/games-go/internal/util/loc"
 
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 	"github.com/gre-ory/games-go/internal/game/czm/store"
@@ -22,10 +21,10 @@ type GameService interface {
 	WrapData(data share_websocket.Data, player *model.Player) (bool, any)
 }
 
-func NewGameService(logger *zap.Logger, gameStore store.GameStore, playerStore store.PlayerStore) GameService {
+func NewGameService(logger *zap.Logger, gameStore store.GameStore) GameService {
 	plugin := NewGamePlugin()
 	return &gameService{
-		GameService: share_service.NewGameService(logger, plugin, gameStore, playerStore),
+		GameService: share_service.NewGameService(logger, plugin, gameStore),
 		logger:      logger,
 	}
 }
@@ -138,9 +137,7 @@ func (s *gameService) WrapData(data share_websocket.Data, player *model.Player) 
 	if player == nil {
 		return true, data
 	}
-	localizer := loc.NewLocalizer(model.AppId, loc.Language(player.Language()), s.logger)
-	// s.logger.Info(fmt.Sprintf("[wrap] player %v: lang=%s ( %s )", player.Id(), player.Language, localizer.Loc("GameTitle", "ABC")))
-	data.With("lang", localizer)
+	data.With("lang", model.App.PlayerLocalizer(player))
 	if !player.HasGameId() {
 		return true, data
 	}
@@ -190,7 +187,7 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 	// draw cards & build player boards
 	//
 
-	// for _, player := range game.GetPlayers() {
+	// for _, player := range game.Players() {
 	// 	board := model.NewPlayerBoard()
 	// 	for columnIndex := 0; columnIndex < game.NbColumn; columnIndex++ {
 	// 		column := model.NewPlayerColumn(columnIndex + 1)

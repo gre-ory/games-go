@@ -116,6 +116,10 @@ func (p *player) Language() UserLanguage {
 	return p.language
 }
 
+func (p *player) LocLanguage() loc.Language {
+	return loc.Language(p.language)
+}
+
 func (p *player) SetLanguage(language UserLanguage) {
 	p.language = language
 }

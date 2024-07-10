@@ -31,6 +31,10 @@ type GameService[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
 	DeleteGame(game GameT, playerId model.PlayerId) error
 
 	SaveGame(game GameT) (GameT, error)
+
+	RegisterOnJoinGame(func(game GameT, player PlayerT))
+	RegisterOnGame(func(game GameT))
+	RegisterOnLeaveGame(func(game GameT, player PlayerT))
 }
 
 // //////////////////////////////////////////////////
@@ -54,21 +58,22 @@ type GamePlugin[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
 	CanDeleteGame(game GameT, playerId model.PlayerId) error
 }
 
-func NewGameService[PlayerT model.Player, GameT model.Game[PlayerT]](logger *zap.Logger, plugin GamePlugin[PlayerT, GameT], gameStore store.GameStore[GameT], playerStore store.PlayerStore[PlayerT]) GameService[PlayerT, GameT] {
+func NewGameService[PlayerT model.Player, GameT model.Game[PlayerT]](logger *zap.Logger, plugin GamePlugin[PlayerT, GameT], gameStore store.GameStore[GameT]) GameService[PlayerT, GameT] {
 	return &gameService[PlayerT, GameT]{
-		logger:      logger,
-		plugin:      plugin,
-		gameStore:   gameStore,
-		playerStore: playerStore,
+		logger:    logger,
+		plugin:    plugin,
+		gameStore: gameStore,
 	}
 }
 
 type gameService[PlayerT model.Player, GameT model.Game[PlayerT]] struct {
-	logger      *zap.Logger
-	plugin      GamePlugin[PlayerT, GameT]
-	gameStore   store.GameStore[GameT]
-	playerStore store.PlayerStore[PlayerT]
-	empty       GameT
+	logger     *zap.Logger
+	plugin     GamePlugin[PlayerT, GameT]
+	gameStore  store.GameStore[GameT]
+	onJoinFns  []func(game GameT, player PlayerT)
+	onGameFns  []func(game GameT)
+	onLeaveFns []func(game GameT, player PlayerT)
+	empty      GameT
 }
 
 // //////////////////////////////////////////////////
@@ -144,14 +149,25 @@ func (s *gameService[PlayerT, GameT]) CreateGame(player PlayerT) (GameT, error) 
 		return s.empty, err
 	}
 
-	player.SetGameId(game.Id())
-	player.SetStatus(model.PlayerStatus_WaitingToStart)
+	game.AttachPlayer(player)
+	game.UpdateJoinStatus()
 
 	//
 	// save game
 	//
 
-	return s.SaveGame(game)
+	game, err = s.SaveGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+
+	//
+	// callbacks
+	//
+
+	s.onJoinGame(game, player)
+
+	return game, nil
 }
 
 // //////////////////////////////////////////////////
@@ -200,14 +216,25 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 		return s.empty, err
 	}
 
-	player.SetGameId(game.Id())
-	player.SetStatus(model.PlayerStatus_WaitingToStart)
+	game.AttachPlayer(player)
+	game.UpdateJoinStatus()
 
 	//
 	// save game
 	//
 
-	return s.SaveGame(game)
+	game, err = s.SaveGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+
+	//
+	// callbacks
+	//
+
+	s.onJoinGame(game, player)
+
+	return game, nil
 }
 
 // //////////////////////////////////////////////////
@@ -253,7 +280,18 @@ func (s *gameService[PlayerT, GameT]) StartGame(game GameT) (GameT, error) {
 	// save game
 	//
 
-	return s.SaveGame(game)
+	game, err := s.SaveGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+
+	//
+	// callbacks
+	//
+
+	s.onGame(game)
+
+	return game, nil
 }
 
 // //////////////////////////////////////////////////
@@ -302,14 +340,27 @@ func (s *gameService[PlayerT, GameT]) LeaveGame(game GameT, player PlayerT) (Gam
 		return s.empty, err
 	}
 
+	game.DetachPlayer(player)
+	game.UpdateJoinStatus()
+
 	player.SetStatus(model.PlayerStatus_WaitingToJoin)
-	player.UnsetGameId()
 
 	//
 	// save game
 	//
 
-	return s.SaveGame(game)
+	game, err = s.SaveGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+
+	//
+	// callbacks
+	//
+
+	s.onLeaveGame(game, player)
+
+	return game, nil
 }
 
 // //////////////////////////////////////////////////
@@ -343,7 +394,18 @@ func (s *gameService[PlayerT, GameT]) StopGame(game GameT) (GameT, error) {
 	// store game
 	//
 
-	return s.storeGame(game)
+	game, err := s.storeGame(game)
+	if err != nil {
+		return s.empty, err
+	}
+
+	//
+	// callbacks
+	//
+
+	s.onGame(game)
+
+	return game, nil
 }
 
 // //////////////////////////////////////////////////
@@ -409,4 +471,37 @@ func (s *gameService[PlayerT, GameT]) storeGame(game GameT) (GameT, error) {
 
 func (s *gameService[PlayerT, GameT]) deleteGame(game GameT) error {
 	return s.gameStore.Delete(game.Id())
+}
+
+// //////////////////////////////////////////////////
+// callbacks
+
+func (s *gameService[PlayerT, GameT]) RegisterOnJoinGame(onJoinFn func(game GameT, player PlayerT)) {
+	s.onJoinFns = append(s.onJoinFns, onJoinFn)
+}
+
+func (s *gameService[PlayerT, GameT]) onJoinGame(game GameT, player PlayerT) {
+	for _, onJoinFn := range s.onJoinFns {
+		onJoinFn(game, player)
+	}
+}
+
+func (s *gameService[PlayerT, GameT]) RegisterOnGame(onGameFn func(game GameT)) {
+	s.onGameFns = append(s.onGameFns, onGameFn)
+}
+
+func (s *gameService[PlayerT, GameT]) onGame(game GameT) {
+	for _, onGameFn := range s.onGameFns {
+		onGameFn(game)
+	}
+}
+
+func (s *gameService[PlayerT, GameT]) RegisterOnLeaveGame(onLeaveFn func(game GameT, player PlayerT)) {
+	s.onLeaveFns = append(s.onLeaveFns, onLeaveFn)
+}
+
+func (s *gameService[PlayerT, GameT]) onLeaveGame(game GameT, player PlayerT) {
+	for _, onLeaveFn := range s.onLeaveFns {
+		onLeaveFn(game, player)
+	}
 }

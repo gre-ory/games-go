@@ -2,7 +2,7 @@ package model
 
 import (
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
-	"github.com/gre-ory/games-go/internal/game/share/websocket"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 )
 
 const (
@@ -78,14 +78,14 @@ func (g *Game) GetTopCards() TopCards {
 	return topCards
 }
 
-func (g *Game) WrapData(data websocket.Data, player *Player) (bool, any) {
+func (g *Game) WrapData(data share_websocket.Data, player *Player) (bool, any) {
 	data = data.With("game", g)
 
 	playerId := player.Id()
 	if playerId == "" {
 		return true, data
 	}
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return false, nil
 	}

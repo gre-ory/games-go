@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gre-ory/games-go/internal/util/list"
+	"github.com/gre-ory/games-go/internal/util/loc"
 )
 
 type UserLanguage string
@@ -17,6 +18,10 @@ var (
 		UserLanguage_Fr,
 	}
 )
+
+func (l UserLanguage) Loc() loc.Language {
+	return loc.Language(l)
+}
 
 func ToLanguage(value string) UserLanguage {
 	value = strings.ToLower(value)

@@ -3,9 +3,10 @@ package api
 import (
 	"net/http"
 
+	"github.com/gre-ory/games-go/internal/util"
+
 	"github.com/gre-ory/games-go/internal/game/share/model"
 	"github.com/gre-ory/games-go/internal/game/share/websocket"
-	"github.com/gre-ory/games-go/internal/util"
 )
 
 // //////////////////////////////////////////////////

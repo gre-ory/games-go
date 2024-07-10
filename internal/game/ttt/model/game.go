@@ -36,7 +36,7 @@ func (g *Game) WrapData(data share_websocket.Data, player *Player) (bool, any) {
 	if playerId == "" {
 		return true, data
 	}
-	player, found := g.GetPlayer(playerId)
+	player, found := g.Player(playerId)
 	if !found {
 		return false, nil
 	}
@@ -75,7 +75,7 @@ func (g *Game) HasWinner() (bool, share_model.PlayerId) {
 }
 
 func (g *Game) GetPlayerIdFromRune(symbol rune) share_model.PlayerId {
-	for _, player := range g.GetPlayers() {
+	for _, player := range g.Players() {
 		if player.Symbol == symbol {
 			return player.Id()
 		}
