@@ -42,11 +42,11 @@ func PageHome(logger *zap.Logger, app model.App, cookieServer CookieServer, hxSe
 
 			renderer := NewRenderer()
 			hxServer.Render(w, "page-home", map[string]any{
-				"app":         app.Id(),
-				"cookie":      cookie,
-				"lang":        app.Localizer(cookie.Language.Loc()),
-				"connect_url": app.HtmxConnectRoute(),
-				"share":       renderer,
+				"AppId":      app.Id(),
+				"Cookie":     cookie,
+				"Lang":       app.Localizer(cookie.Language.Loc()),
+				"ConnectUrl": app.HtmxConnectRoute(),
+				"Share":      renderer,
 			})
 			return
 		}

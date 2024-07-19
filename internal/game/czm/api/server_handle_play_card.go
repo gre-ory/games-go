@@ -6,12 +6,11 @@ import (
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 )
 
-func (s *gameServer) HandlePlayCard(player *model.Player, message JsonMessage) error {
-	s.logger.Info("[ws] play_card", zap.Any("message", message))
+func (s *gameServer) HandlePlayCard(player *model.Player, discardNumber int) error {
+	s.logger.Info("[ws] play_card", zap.Int("discardNumber", discardNumber))
 
-	discardNumber, err := message.DiscardNumber()
-	if err != nil {
-		return err
+	if discardNumber == 0 {
+		return model.ErrInvalidDiscardNumber
 	}
 
 	game, err := s.service.PlayCard(player, discardNumber)

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
@@ -16,46 +17,52 @@ type HubServer[PlayerT Player, GameT Game[PlayerT]] interface {
 
 	Hub() Hub[PlayerT]
 
-	GetPlayer(id model.PlayerId) (PlayerT, error)
-	RegisterPlayer(player PlayerT)
-	UnregisterPlayer(id model.PlayerId)
-	UpdatePlayer(player PlayerT)
-	OnPlayerUpdate(playerId model.PlayerId)
+	GetUser(id model.UserId) (User, error)
+	RegisterUser(user User)
+	UnregisterUserId(id model.UserId)
+	UpdateUser(user User)
 
+	UpdateUserFromPlayer(player PlayerT)
+	OnUserUpdate(userId model.UserId)
+
+	GetPlayer(playerId model.PlayerId) (PlayerT, error)
+
+	BroadcastInfoToUser(userId model.UserId, info string)
+	BroadcastErrorToUser(userId model.UserId, err error)
 	BroadcastInfoToPlayers(game GameT, info string)
-	BroadcastInfoToPlayer(playerId model.PlayerId, info string)
-	BroadcastErrorToPlayer(playerId model.PlayerId, err error)
-	BroadcastSelectGameToPlayer(playerId model.PlayerId)
-	BroadcastGameLayoutToPlayer(playerId model.PlayerId, game GameT)
-	BroadcastJoinableGamesToPlayer(playerId model.PlayerId)
+	BroadcastJoinableGamesToUser(userId model.UserId)
 	BroadcastJoinableGames()
+	BroadcastGameLayoutToPlayer(playerId model.PlayerId, game GameT)
 	BroadcastGame(game GameT)
 	BroadcastPlayers(game GameT)
 	BroadcastBoard(game GameT)
 	BroadcastPlayer(player PlayerT)
-	BroadcastPlayerCookie(cookie *model.Cookie, renderUserFn func(cookie *model.Cookie) func(w io.Writer, data any))
+	BroadcastCookie(cookie *model.Cookie)
+	BroadcastUserCookie(cookie *model.Cookie, renderUserFn func(cookie *model.Cookie) func(w io.Writer, data model.Data))
 
 	OnJoinGame(game GameT, player PlayerT)
-	OnLeaveGame(game GameT, player PlayerT)
 	OnGame(game GameT)
+	OnLeaveGame(game GameT, userId model.UserId)
 }
 
 type Game[PlayerT Player] interface {
 	Id() model.GameId
+	Player(id model.PlayerId) (PlayerT, bool)
 	Players() []PlayerT
 }
 
 type CookieServer interface {
 	GetValidCookie(r *http.Request) (*model.Cookie, error)
+	RenderUser(cookie *model.Cookie) func(w io.Writer, data model.Data)
 }
 
-func NewHubServer[PlayerT Player, GameT Game[PlayerT]](logger *zap.Logger, hub Hub[PlayerT], cookierServer CookieServer, newPlayerFromCookieFn func(cookier *model.Cookie) PlayerT, service Service[PlayerT, GameT]) HubServer[PlayerT, GameT] {
+func NewHubServer[PlayerT Player, GameT Game[PlayerT]](logger *zap.Logger, hub Hub[PlayerT], cookierServer CookieServer, newUserFromCookieFn func(cookier *model.Cookie) User, service Service[PlayerT, GameT]) HubServer[PlayerT, GameT] {
 	server := &hubServer[PlayerT, GameT]{
-		logger:                logger,
-		hub:                   hub,
-		cookierServer:         cookierServer,
-		newPlayerFromCookieFn: newPlayerFromCookieFn,
-		service:               service,
+		logger:              logger,
+		hub:                 hub,
+		cookierServer:       cookierServer,
+		newUserFromCookieFn: newUserFromCookieFn,
+		service:             service,
 	}
 
 	service.RegisterOnJoinGame(server.OnJoinGame)
@@ -66,27 +73,28 @@ func NewHubServer[PlayerT Player, GameT Game[PlayerT]](logger *zap.Logger, hub H
 }
 
 type hubServer[PlayerT Player, GameT Game[PlayerT]] struct {
-	logger                *zap.Logger
-	hub                   Hub[PlayerT]
-	cookierServer         CookieServer
-	newPlayerFromCookieFn func(cookier *model.Cookie) PlayerT
-	service               Service[PlayerT, GameT]
+	logger              *zap.Logger
+	hub                 Hub[PlayerT]
+	cookierServer       CookieServer
+	newUserFromCookieFn func(cookier *model.Cookie) User
+	service             Service[PlayerT, GameT]
 }
 
 type Service[PlayerT Player, GameT Game[PlayerT]] interface {
 	GetGame(gameId model.GameId) (GameT, error)
 	GetJoinableGames() []GameT
-	GetNonJoinableGames(playerId model.PlayerId) []GameT
+	GetNonJoinableGames(userId model.UserId) []GameT
 
 	RegisterOnJoinGame(func(game GameT, player PlayerT))
 	RegisterOnGame(func(game GameT))
-	RegisterOnLeaveGame(func(game GameT, player PlayerT))
+	RegisterOnLeaveGame(func(game GameT, userId model.UserId))
 }
 
 // //////////////////////////////////////////////////
 // routes
 
 func (s *hubServer[PlayerT, GameT]) RegisterAppRoutes(router *httprouter.Router, app model.App) {
+	s.logger.Info(fmt.Sprintf(" (+) GET %s", app.HtmxConnectRoute()))
 	router.HandlerFunc(http.MethodGet, app.HtmxConnectRoute(), s.HtmxConnect)
 }
 
@@ -97,95 +105,146 @@ func (s *hubServer[PlayerT, GameT]) Hub() Hub[PlayerT] {
 	return s.hub
 }
 
-func (s *hubServer[PlayerT, GameT]) GetPlayer(id model.PlayerId) (PlayerT, error) {
-	return s.hub.GetPlayer(id)
+// //////////////////////////////////////////////////
+// user
+
+func (s *hubServer[PlayerT, GameT]) GetUser(id model.UserId) (User, error) {
+	return s.hub.GetUser(id)
 }
 
-func (s *hubServer[PlayerT, GameT]) RegisterPlayer(player PlayerT) {
-	s.hub.RegisterPlayer(player)
+func (s *hubServer[PlayerT, GameT]) RegisterUser(user User) {
+	s.hub.RegisterUser(user)
 }
 
-func (s *hubServer[PlayerT, GameT]) UnregisterPlayer(id model.PlayerId) {
-	s.hub.UnregisterPlayer(id)
+func (s *hubServer[PlayerT, GameT]) UnregisterUserId(id model.UserId) {
+	s.hub.UnregisterUserId(id)
 }
 
-func (s *hubServer[PlayerT, GameT]) UpdatePlayer(player PlayerT) {
-	s.hub.UpdatePlayer(player)
+func (s *hubServer[PlayerT, GameT]) UpdateUser(user User) {
+	s.hub.UpdateUser(user)
 }
 
-func (s *hubServer[PlayerT, GameT]) OnPlayerUpdate(playerId model.PlayerId) {
-	player, err := s.GetPlayer(playerId)
+// //////////////////////////////////////////////////
+// player
+
+func (s *hubServer[PlayerT, GameT]) UpdateUserFromPlayer(player PlayerT) {
+	userId := player.Id().UserId()
+	user, err := s.GetUser(userId)
 	if err != nil {
-		s.logger.Error("player NOT found", zap.Any("id", playerId))
+		s.logger.Error("user NOT found", zap.Any("id", userId))
 		return
 	}
+	user.SetGameId(player.GameId())
+	s.UpdateUser(user)
+}
+
+func (s *hubServer[PlayerT, GameT]) OnUserUpdate(userId model.UserId) {
+	user, err := s.hub.GetUser(userId)
+	if err != nil {
+		return
+	}
+	s.BroadcastUser(user)
+}
+
+func (s *hubServer[PlayerT, GameT]) GetPlayer(playerId model.PlayerId) (PlayerT, error) {
+	return s.hub.GetPlayer(playerId)
+}
+
+// //////////////////////////////////////////////////
+// broadcast
+
+func (s *hubServer[PlayerT, GameT]) BroadcastCookie(cookie *model.Cookie) {
+
+	s.logger.Info("[on-cookie] broadcast cookie...", zap.Any("cookie", cookie))
+	s.BroadcastUserCookie(cookie, s.cookierServer.RenderUser)
+
+	userId := cookie.Id
+	s.logger.Info(fmt.Sprintf("[on-cookie] broadcast user %s...", userId), zap.Any("cookie", cookie))
+	user, err := s.Hub().GetUser(userId)
+	if err != nil {
+		s.logger.Info(fmt.Sprintf("[on-cookie] user %s NOT found >>> SKIPPED", userId), zap.Any("cookie", cookie), zap.Error(err))
+		return
+	}
+	s.logger.Info(fmt.Sprintf("[on-cookie] update user %s + broadcast", userId), zap.Any("cookie", cookie))
+	user.SetCookie(cookie)
+
+	s.BroadcastUser(user)
+
+	if !user.HasGameId() {
+		return
+	}
+
+	playerId := user.PlayerId()
+	s.logger.Info(fmt.Sprintf("[on-cookie] broadcast player %s...", playerId), zap.Any("cookie", cookie))
+	player, err := s.Hub().GetPlayer(playerId)
+	if err != nil {
+		s.logger.Info(fmt.Sprintf("[on-cookie] player %s NOT found >>> SKIPPED", playerId), zap.Any("cookie", cookie), zap.Error(err))
+		return
+	}
+	s.logger.Info(fmt.Sprintf("[on-cookie] update player %s + broadcast", playerId), zap.Any("cookie", cookie))
+	player.User().SetCookie(cookie)
+
 	s.BroadcastPlayer(player)
 }
 
 // //////////////////////////////////////////////////
 // broadcast
 
+func (s *hubServer[PlayerT, GameT]) BroadcastInfoToUser(userId model.UserId, info string) {
+	s.hub.BroadcastToUser("info", userId, model.Data{
+		"Info": info,
+	})
+}
+
+func (s *hubServer[PlayerT, GameT]) BroadcastErrorToUser(userId model.UserId, err error) {
+	s.hub.BroadcastToUser("error", userId, model.Data{
+		"Error": err.Error(),
+	})
+}
+
 func (s *hubServer[PlayerT, GameT]) BroadcastInfoToPlayers(game GameT, info string) {
-	s.hub.BroadcastToGamePlayers("info", game.Id(), Data{
-		"info": info,
+	s.hub.BroadcastToGamePlayers("info", game.Id(), model.Data{
+		"Info": info,
 	})
 }
 
-func (s *hubServer[PlayerT, GameT]) BroadcastInfoToPlayer(playerId model.PlayerId, info string) {
-	s.hub.BroadcastToPlayer("info", playerId, Data{
-		"info": info,
-	})
-}
-
-func (s *hubServer[PlayerT, GameT]) BroadcastErrorToPlayer(playerId model.PlayerId, err error) {
-	s.hub.BroadcastToPlayer("error", playerId, Data{
-		"error": err.Error(),
-	})
-}
-
-func (s *hubServer[PlayerT, GameT]) BroadcastSelectGameToPlayer(playerId model.PlayerId) {
-	data := s.getJoinableGamesData(playerId)
-	s.hub.BroadcastToPlayer("select-game", playerId, data)
-}
-
-func (s *hubServer[PlayerT, GameT]) BroadcastGameLayoutToPlayer(playerId model.PlayerId, game GameT) {
-	s.hub.BroadcastToPlayer("game-layout", playerId, Data{
-		"game": game,
-	})
-}
-
-func (s *hubServer[PlayerT, GameT]) BroadcastJoinableGamesToPlayer(playerId model.PlayerId) {
-	data := s.getJoinableGamesData(playerId)
-	s.hub.BroadcastToPlayer("select-game", playerId, data)
+func (s *hubServer[PlayerT, GameT]) BroadcastJoinableGamesToUser(userId model.UserId) {
+	data := s.getJoinableGamesData(userId)
+	s.hub.BroadcastToUser("select-game", userId, data)
 }
 
 func (s *hubServer[PlayerT, GameT]) BroadcastJoinableGames() {
-	s.hub.BroadcastToNotPlayingPlayersFn("select-game", func(player PlayerT) (bool, any) {
-		data := s.getJoinableGamesData(player.Id())
-		return s.hub.WrapPlayerData(data, player)
+	s.hub.BroadcastToNotPlayingUsersFn("select-game", func(user User) (bool, model.Data) {
+		data := s.getJoinableGamesData(user.Id())
+		return s.hub.WrapUserData(data, user)
 	})
 }
 
-func (s *hubServer[PlayerT, GameT]) getJoinableGamesData(playerId model.PlayerId) Data {
-	waitingPlayers := s.getWaitingPlayers(playerId)
-	data := make(Data)
-	data["new_games"] = s.service.GetJoinableGames()
-	data["other_games"] = s.service.GetNonJoinableGames(playerId)
-	data["has_waiting_players"] = len(waitingPlayers) > 0
-	data["waiting_players"] = waitingPlayers
-	return data
+func (s *hubServer[PlayerT, GameT]) getJoinableGamesData(userId model.UserId) model.Data {
+	waitingUsers := s.getWaitingUsers(userId)
+	return model.Data{
+		"NewGames":        s.service.GetJoinableGames(),
+		"OtherGames":      s.service.GetNonJoinableGames(userId),
+		"HasWaitingUsers": len(waitingUsers) > 0,
+		"WaitingUsers":    waitingUsers,
+	}
 }
 
-func (s *hubServer[PlayerT, GameT]) getWaitingPlayers(playerId model.PlayerId) []PlayerT {
-	players := s.hub.GetNotPlayingPlayers()
-	waitingPlayers := make([]PlayerT, 0, len(players))
-	for _, player := range players {
-		if player.Id() == playerId {
-			continue
+func (s *hubServer[PlayerT, GameT]) getWaitingUsers(userId model.UserId) []User {
+	users := s.hub.GetNotPlayingUsers()
+	waitingUsers := make([]User, 0, len(users))
+	for _, user := range users {
+		if user.IsNotUser(userId) {
+			waitingUsers = append(waitingUsers, user)
 		}
-		waitingPlayers = append(waitingPlayers, player)
 	}
-	return waitingPlayers
+	return waitingUsers
+}
+
+func (s *hubServer[PlayerT, GameT]) BroadcastGameLayoutToPlayer(playerId model.PlayerId, game GameT) {
+	s.hub.BroadcastToPlayer("game-layout", playerId, model.Data{
+		"Game": game,
+	})
 }
 
 func (s *hubServer[PlayerT, GameT]) BroadcastGame(game GameT) {
@@ -194,44 +253,60 @@ func (s *hubServer[PlayerT, GameT]) BroadcastGame(game GameT) {
 }
 
 func (s *hubServer[PlayerT, GameT]) BroadcastPlayers(game GameT) {
-	s.hub.BroadcastToGamePlayers("players", game.Id(), Data{
-		"players": game.Players(),
+	s.hub.BroadcastToGamePlayers("players", game.Id(), model.Data{
+		"Players": game.Players(),
 	})
 }
 
 func (s *hubServer[PlayerT, GameT]) BroadcastBoard(game GameT) {
-	s.hub.BroadcastToGamePlayers("board", game.Id(), Data{
-		"game": game,
+	s.hub.BroadcastToGamePlayers("board", game.Id(), model.Data{
+		"Game": game,
 	})
 }
 
 func (s *hubServer[PlayerT, GameT]) BroadcastPlayer(player PlayerT) {
-	s.UpdatePlayer(player)
+	s.UpdateUserFromPlayer(player)
 	s.BroadcastJoinableGames()
-	if player.HasGameId() {
-		game, err := s.service.GetGame(player.GameId())
-		if err == nil {
-			s.BroadcastGame(game)
-		}
+	game, err := s.service.GetGame(player.GameId())
+	if err == nil {
+		s.BroadcastGame(game)
 	}
 }
 
-func (s *hubServer[PlayerT, GameT]) BroadcastPlayerCookie(cookie *model.Cookie, renderCookieFn func(cookie *model.Cookie) func(w io.Writer, data any)) {
-	playerId := cookie.PlayerId()
-	s.Hub().BroadcastToPlayerRender(playerId, nil, renderCookieFn(cookie))
+func (s *hubServer[PlayerT, GameT]) BroadcastUserCookie(cookie *model.Cookie, renderCookieFn func(cookie *model.Cookie) func(w io.Writer, data model.Data)) {
+	s.Hub().BroadcastToUserRender(cookie.Id, nil, renderCookieFn(cookie))
+}
+
+func (s *hubServer[PlayerT, GameT]) BroadcastUser(user User) {
+	s.BroadcastJoinableGames()
 }
 
 // //////////////////////////////////////////////////
 // on game events
 
 func (s *hubServer[PlayerT, GameT]) OnJoinGame(game GameT, player PlayerT) {
+
+	userId := player.User().Id()
+	user, err := s.GetUser(userId)
+	if err != nil {
+		return
+	}
+	user.SetGameId(game.Id())
+
 	s.BroadcastGameLayoutToPlayer(player.Id(), game)
 	s.OnGame(game)
 }
 
-func (s *hubServer[PlayerT, GameT]) OnLeaveGame(game GameT, player PlayerT) {
-	s.BroadcastJoinableGamesToPlayer(player.Id())
+func (s *hubServer[PlayerT, GameT]) OnLeaveGame(game GameT, userId model.UserId) {
+
+	user, err := s.GetUser(userId)
+	if err != nil {
+		return
+	}
+	user.UnsetGameId()
+
 	s.OnGame(game)
+	s.BroadcastJoinableGamesToUser(userId)
 }
 
 func (s *hubServer[PlayerT, GameT]) OnGame(game GameT) {

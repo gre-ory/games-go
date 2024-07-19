@@ -1,17 +1,38 @@
 package model
 
 import (
-	"github.com/jaevor/go-nanoid"
-
-	"github.com/gre-ory/games-go/internal/util"
+	"fmt"
+	"strings"
 )
 
 type PlayerId string
 
-const playerIdAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+func NewPlayerId(gameId GameId, userId UserId) PlayerId {
+	if gameId == "" {
+		panic(ErrMissingGameId)
+	}
+	if userId == "" {
+		panic(ErrMissingUserId)
+	}
+	return PlayerId(fmt.Sprintf("%s-%s", gameId, userId))
+}
 
-var playerIdGenerateFn = util.Must(nanoid.CustomASCII(playerIdAlphabet, 6))
+func (id PlayerId) GameId() GameId {
+	parts := strings.Split(string(id), "-")
+	if len(parts) != 2 {
+		panic(ErrInvalidPlayerId)
+	}
+	return GameId(parts[0])
+}
 
-var GeneratePlayerId = func() PlayerId {
-	return PlayerId(playerIdGenerateFn())
+func (id PlayerId) UserId() UserId {
+	parts := strings.Split(string(id), "-")
+	if len(parts) != 2 {
+		panic(ErrInvalidPlayerId)
+	}
+	return UserId(parts[1])
+}
+
+func (id PlayerId) MatchUser(userId UserId) bool {
+	return id.UserId() == userId
 }

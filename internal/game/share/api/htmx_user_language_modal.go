@@ -6,7 +6,6 @@ import (
 	"github.com/gre-ory/games-go/internal/util"
 
 	"github.com/gre-ory/games-go/internal/game/share/model"
-	"github.com/gre-ory/games-go/internal/game/share/websocket"
 )
 
 // //////////////////////////////////////////////////
@@ -30,8 +29,10 @@ func (s *cookieServer) htmx_user_language_modal(w http.ResponseWriter, r *http.R
 			break
 		}
 
-		data := websocket.Data(cookie.Data())
-		data.With("available_languages", model.GetAvailableLanguages())
+		data := model.Data{
+			"User":               cookie,
+			"AvailableLanguages": model.GetAvailableLanguages(),
+		}
 		s.hxServer.Render(w, "user-language-modal", data)
 		return
 	}

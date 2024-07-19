@@ -7,6 +7,7 @@ import (
 
 	"github.com/gre-ory/games-go/internal/util/loc"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"go.uber.org/zap"
 	"golang.org/x/text/language"
 )
 
@@ -22,8 +23,11 @@ func (id AppId) Loc() loc.AppId {
 type App interface {
 	Id() AppId
 
+	Logger(mainLogger *zap.Logger) *zap.Logger
+
 	NewDefaultEmbedBundle(fs embed.FS, langs ...language.Tag) *i18n.Bundle
 	PlayerLocalizer(player Player) loc.Localizer
+	UserLocalizer(user User) loc.Localizer
 	Localizer(lang loc.Language) loc.Localizer
 
 	Route(path string) string
@@ -45,12 +49,20 @@ func (a *app) Id() AppId {
 	return a.id
 }
 
+func (a *app) Logger(mainLogger *zap.Logger) *zap.Logger {
+	return mainLogger.With(zap.String("app", string(a.id)))
+}
+
 func (a *app) NewDefaultEmbedBundle(fs embed.FS, langs ...language.Tag) *i18n.Bundle {
 	return loc.NewDefaultEmbedBundle(a.Id().Loc(), fs, langs...)
 }
 
 func (a *app) PlayerLocalizer(player Player) loc.Localizer {
-	return a.Localizer(player.Language().Loc())
+	return a.UserLocalizer(player.User())
+}
+
+func (a *app) UserLocalizer(user User) loc.Localizer {
+	return a.Localizer(user.Language().Loc())
 }
 
 func (a *app) Localizer(lang loc.Language) loc.Localizer {

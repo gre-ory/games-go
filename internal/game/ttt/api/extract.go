@@ -13,7 +13,7 @@ import (
 func (s *gameServer) extractPathGameId(ctx context.Context) (share_model.GameId, error) {
 	gameId := share_model.GameId(util.ExtractPathParameter(ctx, "game_id"))
 	if gameId == "" {
-		return "", model.ErrMissingGameId
+		return "", share_model.ErrMissingGameId
 	}
 	return gameId, nil
 }

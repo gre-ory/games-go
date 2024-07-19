@@ -25,6 +25,7 @@ type GameServer interface {
 }
 
 func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, service service.GameService) GameServer {
+	logger = model.App.Logger(logger)
 	hxServer := util.NewHxServer(logger, tpl)
 
 	server := &gameServer{
@@ -35,10 +36,10 @@ func NewGameServer(logger *zap.Logger, cookieServer share_api.CookieServer, serv
 		service:      service,
 	}
 
-	hub := share_websocket.NewHub[*model.Player](logger, server.WrapData, hxServer)
-	server.HubServer = share_websocket.NewHubServer[*model.Player, *model.Game](logger, hub, cookieServer, server.newPlayerFromCookie, service)
+	hub := share_websocket.NewHub(logger, server.WrapUserData, service.GetPlayer, server.WrapPlayerData, hxServer)
+	server.HubServer = share_websocket.NewHubServer(logger, hub, cookieServer, server.newUserFromCookie, service)
 
-	server.CookieServer.RegisterOnCookie(server.onCookie)
+	server.CookieServer.RegisterOnCookie(server.BroadcastCookie)
 
 	return server
 }
@@ -56,6 +57,7 @@ type gameServer struct {
 // register
 
 func (s *gameServer) RegisterRoutes(router *httprouter.Router) {
+	s.logger.Info(fmt.Sprintf(" (+) GET %s", model.App.HomeRoute()))
 	router.HandlerFunc(http.MethodGet, model.App.HomeRoute(), s.page_home())
 	s.HubServer.RegisterAppRoutes(router, model.App)
 }
@@ -67,31 +69,31 @@ func (s *gameServer) page_home() func(http.ResponseWriter, *http.Request) {
 // //////////////////////////////////////////////////
 // wrap data
 
-func (s *gameServer) WrapData(data share_websocket.Data, player *model.Player) (bool, any) {
-	data.With("share", share_api.NewRenderer())
-	return s.service.WrapData(data, player)
+func (s *gameServer) WrapUserData(data share_model.Data, user share_model.User) (bool, share_model.Data) {
+	data = data.With("Share", share_api.NewRenderer())
+	if user == nil {
+		return true, data
+	}
+	data = data.With("Lang", model.App.UserLocalizer(user))
+	return true, data
+}
+
+func (s *gameServer) WrapPlayerData(data share_model.Data, player *model.Player) (bool, share_model.Data) {
+	ok, data := s.WrapUserData(data, player.User())
+	if !ok {
+		return false, nil
+	}
+	if game, err := s.service.GetGame(player.GameId()); err != nil {
+		return false, nil
+	} else {
+		data = data.With("Game", game)
+	}
+	return true, data
 }
 
 // //////////////////////////////////////////////////
 // cookie
 
-func (s *gameServer) newPlayerFromCookie(cookie *share_model.Cookie) *model.Player {
-	ws_player := share_websocket.NewPlayerFromCookie(s.logger, cookie, s.onMessage, s.OnPlayerUpdate, nil)
-	return model.NewPlayer(ws_player)
-}
-
-func (s *gameServer) onCookie(cookie *share_model.Cookie) {
-
-	playerId := cookie.PlayerId()
-	player, err := s.Hub().GetPlayer(playerId)
-	if err != nil {
-		s.logger.Info(fmt.Sprintf("[on-cookie] %s :: player %s NOT found >>> SKIPPED", model.App.Id(), playerId), zap.Any("cookie", cookie))
-		return
-	}
-	s.logger.Info(fmt.Sprintf("[on-cookie] %s :: update player %s + broadcast", model.App.Id(), playerId), zap.Any("cookie", cookie))
-
-	player.SetCookie(cookie)
-
-	s.BroadcastPlayer(player)
-	s.BroadcastPlayerCookie(cookie, s.CookieServer.RenderUser)
+func (s *gameServer) newUserFromCookie(cookie *share_model.Cookie) share_websocket.User {
+	return share_websocket.NewUser(s.logger, cookie, s.onMessage, s.OnUserUpdate, nil)
 }

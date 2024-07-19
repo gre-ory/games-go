@@ -5,7 +5,7 @@
         <form hx-put="/htmx/user" hx-target="#user" hx-swap="outerHTML">
             <div class="left">
                 <label>Name</label>
-                <input type="text" name="user_name" value="{{ or .user.Name .user.Id }}">
+                <input type="text" name="user_name" value="{{ .User.Name }}">
             </div>
             <div class="right">
                 <button _="on click trigger closeModal">Submit</button>

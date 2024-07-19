@@ -6,12 +6,14 @@ import (
 	"github.com/gre-ory/games-go/internal/game/skj/model"
 )
 
-func (s *gameServer) HandleFlipCard(player *model.Player, message JsonMessage) error {
-	s.logger.Info("[ws] flip card", zap.Any("message", message))
+func (s *gameServer) HandleFlipCard(player *model.Player, columnNumber, rowNumber int) error {
+	s.logger.Info("[ws] flip card", zap.Int("column", columnNumber), zap.Int("row", rowNumber))
 
-	columnNumber, rowNumber, err := message.Cell()
-	if err != nil {
-		return err
+	if columnNumber == 0 {
+		return model.ErrInvalidColumn
+	}
+	if rowNumber == 0 {
+		return model.ErrInvalidRow
 	}
 
 	game, err := s.service.FlipCard(player, columnNumber, rowNumber)

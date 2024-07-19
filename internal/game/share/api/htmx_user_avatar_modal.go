@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gre-ory/games-go/internal/game/share/model"
-	"github.com/gre-ory/games-go/internal/game/share/websocket"
 	"github.com/gre-ory/games-go/internal/util"
 )
 
@@ -29,8 +28,10 @@ func (s *cookieServer) htmx_user_avatar_modal(w http.ResponseWriter, r *http.Req
 			break
 		}
 
-		data := websocket.Data(cookie.Data())
-		data.With("available_avatars", model.GetAvailableAvatars())
+		data := model.Data{
+			"User":             cookie,
+			"AvailableAvatars": model.GetAvailableAvatars(),
+		}
 		s.hxServer.Render(w, "user-avatar-modal", data)
 		return
 	}

@@ -1,5 +1,5 @@
 {{define "page-home"}}
-{{- $lang := .lang }}
+{{- $lang := .Lang }}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,14 +17,14 @@
     <link rel="stylesheet" href="/static/share/luciole.css"/>
     <link rel="stylesheet" href="/static/share/game.css"/>
     <link rel="stylesheet" href="/static/share/avatar.css"/>
-    <link rel="stylesheet" href="/static/{{ .app }}/game.css"/>
+    <link rel="stylesheet" href="/static/{{ .AppId }}/game.css"/>
 </head>
 <body>
-    {{ .share.UserBadge }}
-    {{ .share.WsStatusBadge }}
+    {{ .Share.UserBadge }}
+    {{ .Share.WsStatusBadge }}
 
 	<!-- websocket -->
-    <div id="main" hx-ext="ws" ws-connect="{{ .connect_url }}" hx-trigger="load">
+    <div id="main" hx-ext="ws" ws-connect="{{ .ConnectUrl }}" hx-trigger="load">
 
 	    <!-- header -->        
 		<div id="header">
@@ -33,7 +33,7 @@
         
         <!-- content -->  
         <div id="content">
-            {{ .share.LoadingDot }}
+            {{ .Share.LoadingDot }}
         </div>
         
         <!-- notifications --> 

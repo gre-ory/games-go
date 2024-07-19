@@ -301,15 +301,15 @@ body {
     background-color: var(--color-blue);
 }
 
-#players .player.win {
+#players .player.played.win {
     --item-title-background-color: var(--color-green);
 }
 
-#players .player.loose {
+#players .player.played.loose {
     --item-title-background-color: var(--color-red);
 }
 
-#players .player.tie {
+#players .player.played.tie {
     --item-title-background-color: var(--color-light-gray);
 }
 

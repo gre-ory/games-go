@@ -3,9 +3,9 @@ package service
 import (
 	"go.uber.org/zap"
 
+	share_api "github.com/gre-ory/games-go/internal/game/share/api"
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 	share_service "github.com/gre-ory/games-go/internal/game/share/service"
-	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 
 	"github.com/gre-ory/games-go/internal/game/ttt/model"
 	"github.com/gre-ory/games-go/internal/game/ttt/store"
@@ -14,7 +14,6 @@ import (
 type GameService interface {
 	share_service.GameService[*model.Player, *model.Game]
 	PlayPlayerGame(player *model.Player, x, y int) (*model.Game, error)
-	WrapData(data share_websocket.Data, player *model.Player) (bool, any)
 }
 
 func NewGameService(logger *zap.Logger, gameStore store.GameStore) GameService {
@@ -30,6 +29,8 @@ type gameService struct {
 	logger *zap.Logger
 }
 
+var _ share_api.GameService[*model.Player, *model.Game] = &gameService{}
+
 func (s *gameService) PlayPlayerGame(player *model.Player, x, y int) (*model.Game, error) {
 	game, err := s.GetGame(player.GameId())
 	if err != nil {
@@ -43,7 +44,7 @@ func (s *gameService) PlayGame(game *model.Game, player *model.Player, x, y int)
 		return nil, err
 	}
 	if !player.Status().IsPlaying() {
-		return nil, model.ErrWrongPlayer
+		return nil, share_model.ErrWrongPlayer
 	}
 
 	err := game.Play(player, x, y)
@@ -65,21 +66,6 @@ func (s *gameService) PlayGame(game *model.Game, player *model.Player, x, y int)
 	return s.SaveGame(game)
 }
 
-func (s *gameService) WrapData(data share_websocket.Data, player *model.Player) (bool, any) {
-	if player == nil {
-		return true, data
-	}
-	data.With("lang", model.App.PlayerLocalizer(player))
-	if !player.HasGameId() {
-		return true, data
-	}
-	game, err := s.GetGame(player.GameId())
-	if err != nil {
-		return false, nil
-	}
-	return game.WrapData(data, player)
-}
-
 // //////////////////////////////////////////////
 // game plugin
 
@@ -89,25 +75,28 @@ func NewGamePlugin() share_service.GamePlugin[*model.Player, *model.Game] {
 
 type gamePlugin struct{}
 
-func (p *gamePlugin) CanCreateGame(player *model.Player) error {
+func (p *gamePlugin) CanCreateGame(user share_model.User) error {
 	return nil
 }
 
-func (p *gamePlugin) CreateGame(player *model.Player) (*model.Game, error) {
-	return model.NewGame(3, 3), nil
+func (p *gamePlugin) CreateGame(user share_model.User) (*model.Game, *model.Player, error) {
+	game := model.NewGame(3, 3)
+	player := model.NewPlayerFromUser(game.Id(), user)
+	return game, player, nil
 }
 
-func (p *gamePlugin) CanJoinGame(game *model.Game, player *model.Player) error {
+func (p *gamePlugin) CanJoinGame(game *model.Game, user share_model.User) error {
 	return nil
 }
 
-func (p *gamePlugin) JoinGame(game *model.Game, player *model.Player) (*model.Game, error) {
-	return game, nil
+func (p *gamePlugin) JoinGame(game *model.Game, user share_model.User) (*model.Game, *model.Player, error) {
+	player := model.NewPlayerFromUser(game.Id(), user)
+	return game, player, nil
 }
 
 func (p *gamePlugin) CanStartGame(game *model.Game) error {
 	if !game.CanStart() {
-		return model.ErrMissingPlayers
+		return share_model.ErrMissingPlayers
 	}
 	return nil
 }

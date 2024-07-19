@@ -1,24 +1,22 @@
 {{- define "select-game" }}
-{{- $lang := .lang }}
+{{- $lang := .Lang }}
     <div id="content" hx-swap-oob="innerHTML">
-        {{- if .has_waiting_players }}
+        {{- if .HasWaitingUsers }}
         <div class="cols-1">
             <div class="new-game col-1 item">
                 <div class="title center">{{ $lang.Loc "Lobby" }}</div>
                 <div class="content left">
-                    {{- range $id, $player := .waiting_players }}
+                    {{- range .WaitingUsers }}
                     <div class="badge user player waiting">
-                        {{- if ne .Avatar 0 }}
-                            <div class="avatar-{{ .Avatar }} xs"></div>
-                        {{- end }}
-                        <div class="name truncate">{{ or .Name .Id }}</div>
+                        {{ .User.Avatar.XS }}
+                        <div class="name truncate">{{ .User.Name }}</div>
                     </div>
                     {{- end }}
                 </div>
             </div>
         </div>
         {{- end }}
-        {{- range .new_games }}
+        {{- range .NewGames }}
         {{- $game := . }}
             <div class="cols-1">
                 <div class="join-game col-1 item {{ .Labels }}"> 
@@ -27,10 +25,8 @@
                         <div class="left">
                         {{- range .Players }}
                             <div class="badge user {{ $game.PlayerLabels .Id }}">
-                                {{- if ne .Avatar 0 }}
-                                    <div class="avatar-{{ .Avatar }} xs"></div>
-                                {{- end }}
-                                <div class="name truncate">{{ or .Name .Id }}</div>
+                                {{ .User.Avatar.XS }}
+                                <div class="name truncate">{{ .User.Name }}</div>
                             </div>
                         {{- end }}
                         </div>
@@ -53,7 +49,7 @@
                 </div>
             </div>
         </div>
-        {{- range .other_games }}
+        {{- range .OtherGames }}
         {{- $game := . }}
             <div class="cols-1">
                 <div class="join-game col-1 item {{ .Labels }}"> 
@@ -62,10 +58,8 @@
                         <div class="left">
                         {{- range .Players }}
                             <div class="badge user {{ $game.PlayerLabels .Id }}">
-                                {{- if ne .Avatar 0 }}
-                                    <div class="avatar-{{ .Avatar }} xs"></div>
-                                {{- end }}
-                                <div class="name truncate">{{ or .Name .Id }}</div>
+                                {{ .User.Avatar.XS }}
+                                <div class="name truncate">{{ .User.Name }}</div>
                             </div>
                         {{- end }}
                         </div>

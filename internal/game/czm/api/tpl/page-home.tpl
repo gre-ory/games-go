@@ -1,5 +1,5 @@
 {{define "page-home"}}
-{{- $lang := .lang }}
+{{- $lang := .Lang }}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,20 +14,20 @@
     <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
     <script src="/static/share/ws.js" defer></script>
     <script src="/static/share/dice.js" defer></script>
-    <script src="/static/{{ .app }}/game.js" defer></script>
+    <script src="/static/{{ .AppId }}/game.js" defer></script>
     <!-- css -->
     <link rel="stylesheet" href="/static/share/luciole.css"/>
     <link rel="stylesheet" href="/static/share/game.css"/>
     <link rel="stylesheet" href="/static/share/dice.css"/>
     <link rel="stylesheet" href="/static/share/avatar.css"/>
-    <link rel="stylesheet" href="/static/{{ .app }}/game.css"/>
+    <link rel="stylesheet" href="/static/{{ .AppId }}/game.css"/>
 </head>
 <body>
-    {{ .share.UserBadge }}
-    {{ .share.WsStatusBadge }}
+    {{ .Share.UserBadge }}
+    {{ .Share.WsStatusBadge }}
 
 	<!-- websocket -->
-    <div id="main" hx-ext="ws" ws-connect="{{ .connect_url }}" hx-trigger="load">
+    <div id="main" hx-ext="ws" ws-connect="{{ .ConnectUrl }}" hx-trigger="load">
 
 	    <!-- header -->        
 		<div id="header">
@@ -36,7 +36,7 @@
         
         <!-- content -->   
         <div id="content">
-            {{ .share.LoadingDot }}
+            {{ .Share.LoadingDot }}
         </div>
         
         <!-- notifications --> 

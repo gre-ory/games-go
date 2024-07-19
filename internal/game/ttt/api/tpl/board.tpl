@@ -1,10 +1,10 @@
 {{- define "board" }}
-{{- $lang := .lang }}
-{{- if .game.WasStarted }}
-{{- $playing := .player.IsPlaying }}
-<div id="board" class="{{ .player.Labels }}" hx-swap-oob="outerHTML">
+{{- $lang := .Lang }}
+{{- if .Game.WasStarted }}
+{{- $playing := .Player.IsPlaying }}
+<div id="board" class="{{ .Player.Labels }}" hx-swap-oob="outerHTML">
     <div class="board">
-        {{- range $y, $row := .game.Rows }}
+        {{- range $y, $row := .Game.Rows }}
         <div class="row">
         {{- range $x, $cell := $row.Cells }}
         {{- if and $playing .IsEmpty }}
@@ -19,15 +19,12 @@
         {{- end }}
     </div>
     <div class="center">
-        {{- if .game.IsStopped }}
-            <button ws-send data-action="create-game">{{ $lang.Loc "NewGameAction" }}</button>
-        {{- end }}
         <button ws-send data-action="leave-game">{{ $lang.Loc "LeaveAction" }}</button>
     </div>
 </div>
 {{- else }}
 <div id="board" class="center" hx-swap-oob="outerHTML">
-    {{- if .game.CanStart }}
+    {{- if .Game.CanStart }}
     <button ws-send data-action="start-game">{{ $lang.Loc "StartAction" }}</button>
     {{- else }}
     <button class="off">{{ $lang.Loc "StartAction" }}</button>

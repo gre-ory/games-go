@@ -101,6 +101,7 @@ func main() {
 	//
 
 	router := httprouter.New()
+	logger.Info("registering routes...")
 	cookie_server.RegisterRoutes(router)
 	ttt_server.RegisterRoutes(router)
 	czm_server.RegisterRoutes(router)

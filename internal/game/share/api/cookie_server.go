@@ -33,7 +33,7 @@ type CookieServer interface {
 	ClearCookie(w http.ResponseWriter) error
 	RegisterOnCookie(onCookie CookieCallback)
 	OnCookie(cookie *model.Cookie)
-	RenderUser(cookie *model.Cookie) func(w io.Writer, data any)
+	RenderUser(cookie *model.Cookie) func(w io.Writer, data model.Data)
 }
 
 // //////////////////////////////////////////////////
@@ -78,10 +78,15 @@ type cookieServer struct {
 // register routes
 
 func (s *cookieServer) RegisterRoutes(router *httprouter.Router) {
+	s.logger.Info(" (+) GET /htmx/user")
 	router.HandlerFunc(http.MethodGet, "/htmx/user", s.htmx_get_user)
+	s.logger.Info(" (+) PUT /htmx/user")
 	router.HandlerFunc(http.MethodPut, "/htmx/user", s.htmx_set_user)
+	s.logger.Info(" (+) GET /htmx/user-avatar-modal")
 	router.HandlerFunc(http.MethodGet, "/htmx/user-avatar-modal", s.htmx_user_avatar_modal)
+	s.logger.Info(" (+) GET /htmx/user-name-modal")
 	router.HandlerFunc(http.MethodGet, "/htmx/user-name-modal", s.htmx_user_name_modal)
+	s.logger.Info(" (+) GET /htmx/user-language-modal")
 	router.HandlerFunc(http.MethodGet, "/htmx/user-language-modal", s.htmx_user_language_modal)
 }
 
@@ -219,9 +224,10 @@ func (s *cookieServer) ClearCookie(w http.ResponseWriter) error {
 // //////////////////////////////////////////////////
 // render
 
-func (s *cookieServer) RenderUser(cookie *model.Cookie) func(w io.Writer, data any) {
-	return func(w io.Writer, data any) {
-		s.hxServer.Render(w, "user-oob", cookie.Data())
+func (s *cookieServer) RenderUser(cookie *model.Cookie) func(w io.Writer, data model.Data) {
+	return func(w io.Writer, data model.Data) {
+		data = data.With("User", cookie)
+		s.hxServer.Render(w, "user-oob", data)
 	}
 }
 

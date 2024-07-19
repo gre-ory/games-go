@@ -28,6 +28,7 @@ func NewGameMemoryStore[GameT GameStorable]() GameStore[GameT] {
 
 type gameMemoryStore[GameT GameStorable] struct {
 	games map[model.GameId]GameT
+	empty GameT
 }
 
 func (s *gameMemoryStore[GameT]) ListStatus(status model.GameStatus) []GameT {
@@ -49,8 +50,7 @@ func (s *gameMemoryStore[GameT]) Get(id model.GameId) (GameT, error) {
 	if game, ok := s.games[id]; ok {
 		return game, nil
 	}
-	var empty GameT
-	return empty, model.ErrGameNotFound
+	return s.empty, model.ErrGameNotFound
 }
 
 func (s *gameMemoryStore[GameT]) Delete(id model.GameId) error {

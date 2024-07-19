@@ -6,12 +6,11 @@ import (
 	"github.com/gre-ory/games-go/internal/game/czm/model"
 )
 
-func (s *gameServer) HandleSelectCard(player *model.Player, message JsonMessage) error {
-	s.logger.Info("[ws] select_card", zap.Any("message", message))
+func (s *gameServer) HandleSelectCard(player *model.Player, cardNumber int) error {
+	s.logger.Info("[ws] select_card", zap.Int("card", cardNumber))
 
-	cardNumber, err := message.CardNumber()
-	if err != nil {
-		return err
+	if cardNumber == 0 {
+		return model.ErrInvalidCardNumber
 	}
 
 	game, err := s.service.SelectCard(player, cardNumber)

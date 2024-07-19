@@ -1,19 +1,15 @@
 package model
 
 import (
-	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
+	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 )
 
-func NewPlayer(player share_websocket.Player) *Player {
+func NewPlayerFromUser(gameId share_model.GameId, user share_model.User) *Player {
 	return &Player{
-		Player: player,
+		Player: share_model.NewPlayerFromUser(gameId, user),
 	}
 }
 
 type Player struct {
-	share_websocket.Player
-}
-
-func (p *Player) Playing() bool {
-	return p.Status().IsPlaying()
+	share_model.Player
 }

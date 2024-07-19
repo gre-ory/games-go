@@ -35,8 +35,8 @@ func (s *cookieServer) htmx_set_user(w http.ResponseWriter, r *http.Request) {
 				cookie.Name = name
 			} else {
 				// note: empty name >>> delete name >>> default name = id
-				s.logger.Info(fmt.Sprintf("[DEBUG] name: %s <<< %s (default)", cookie.Name, model.UserName(cookie.Id)))
-				cookie.Name = model.UserName(cookie.Id)
+				s.logger.Info(fmt.Sprintf("[DEBUG] name: %s <<< %s (default)", cookie.Name, model.DefaultUserName(cookie.Id)))
+				cookie.Name = model.DefaultUserName(cookie.Id)
 			}
 		} else {
 			s.logger.Info(fmt.Sprintf("[DEBUG] name: %s (untouched)", cookie.Name))
@@ -67,7 +67,10 @@ func (s *cookieServer) htmx_set_user(w http.ResponseWriter, r *http.Request) {
 
 		s.OnCookie(cookie)
 
-		s.hxServer.Render(w, "user", cookie.Data())
+		data := model.Data{
+			"User": cookie,
+		}
+		s.hxServer.Render(w, "user", data)
 		return
 	}
 

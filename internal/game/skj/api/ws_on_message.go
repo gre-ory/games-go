@@ -11,18 +11,24 @@ import (
 	"github.com/gre-ory/games-go/internal/util"
 
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
+	share_websocket "github.com/gre-ory/games-go/internal/game/share/websocket"
 
 	"github.com/gre-ory/games-go/internal/game/skj/model"
 )
 
-func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
+func (s *gameServer) onMessage(userId share_model.UserId, message []byte) {
 
 	var jsonMessage JsonMessage
+	var user share_websocket.User
 	var player *model.Player
 	var err error
 
 	switch {
 	default:
+
+		//
+		// decode message
+		//
 
 		err = json.NewDecoder(bytes.NewReader(message)).Decode(&jsonMessage)
 		if err != nil {
@@ -35,26 +41,63 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 			break
 		}
 
+		//
+		// fetch websocket user
+		//
+
+		if userId == "" {
+			err = share_model.ErrMissingUserId
+			break
+		}
+		user, err = s.GetUser(userId)
+		if err != nil {
+			break
+		}
+		if user.IsInactive() {
+			err = share_model.ErrInactiveUser
+			break
+		}
+
+		//
+		// create or join game ( if not playing )
+		//
+
+		if !user.HasGameId() {
+
+			now := time.Now()
+			s.logger.Info(fmt.Sprintf("[WS] ------------------------- user %s :: %s -------------------------", userId, jsonMessage.Action), zap.Any("message", jsonMessage))
+			defer func() {
+				s.logger.Info(fmt.Sprintf("[WS] ------------------------- user %s :: %s ( %s ) -------------------------", userId, jsonMessage.Action, time.Since(now)))
+			}()
+
+			switch jsonMessage.Action {
+			case "create-game":
+				err = s.HandleCreateGame(user)
+			case "join-game":
+				err = s.HandleJoinGame(jsonMessage.GameId(), user)
+			default:
+				err = share_model.ErrInvalidAction
+			}
+			break
+		}
+
+		//
+		// fetch player ( if playing )
+		//
+
+		playerId := user.PlayerId()
 		player, err = s.GetPlayer(playerId)
 		if err != nil {
-			s.logger.Info("[DEBUG] player not founf: " + err.Error())
 			break
 		}
 
 		now := time.Now()
-		s.logger.Info(fmt.Sprintf("[WS] ------------------------- %s :: %s -------------------------", playerId, jsonMessage.Action), zap.Any("message", jsonMessage))
+		s.logger.Info(fmt.Sprintf("[WS] ------------------------- player %s :: %s -------------------------", playerId, jsonMessage.Action), zap.Any("message", jsonMessage))
 		defer func() {
-			s.logger.Info(fmt.Sprintf("[WS] ------------------------- %s :: %s ( %s ) -------------------------", playerId, jsonMessage.Action, time.Since(now)))
+			s.logger.Info(fmt.Sprintf("[WS] ------------------------- player %s :: %s ( %s ) -------------------------", playerId, jsonMessage.Action, time.Since(now)))
 		}()
 
 		switch jsonMessage.Action {
-		// case "set-name":
-		// 	err = s.ws_set_player_name(player, jsonMessage)
-		case "create-game":
-			err = s.HandleCreateGame(player)
-		case "join-game":
-			gameId := share_model.GameId(jsonMessage.GameId)
-			err = s.HandleJoinGame(player, gameId)
 		case "start-game":
 			err = s.HandleStartGame(player)
 		case "draw-discard-card":
@@ -62,20 +105,20 @@ func (s *gameServer) onMessage(playerId share_model.PlayerId, message []byte) {
 		case "draw-card":
 			err = s.HandleDrawCard(player)
 		case "put-card":
-			err = s.HandlePutCard(player, jsonMessage)
+			err = s.HandlePutCard(player, jsonMessage.ColumnNumber(), jsonMessage.RowNumber())
 		case "discard-card":
 			err = s.HandleDiscardCard(player)
 		case "flip-card":
-			err = s.HandleFlipCard(player, jsonMessage)
+			err = s.HandleFlipCard(player, jsonMessage.ColumnNumber(), jsonMessage.RowNumber())
 		case "leave-game":
 			err = s.HandleLeaveGame(player)
 		default:
-			err = share_model.ErrMissingAction
+			err = share_model.ErrInvalidAction
 		}
 	}
 
-	if err != nil {
-		s.BroadcastErrorToPlayer(playerId, err)
+	if userId != "" && err != nil {
+		s.BroadcastErrorToUser(userId, err)
 	}
 }
 
@@ -83,43 +126,21 @@ type JsonMessage struct {
 	// Headers    *JsonHeaders `json:"HEADERS,omitempty"`
 	Action          string `json:"action,omitempty"`
 	PlayerName      string `json:"name,omitempty"`
-	GameId          string `json:"game,omitempty"`
+	GameIdStr       string `json:"game,omitempty"`
 	ColumnNumberStr string `json:"column,omitempty"`
 	RowNumberStr    string `json:"row,omitempty"`
 }
 
-func (j *JsonMessage) ColumnNumber() (int, error) {
-	if j.ColumnNumberStr == "" {
-		return 0, model.ErrInvalidColumn
-	}
-	columnNumber := util.ToInt(j.ColumnNumberStr)
-	if columnNumber == 0 {
-		return 0, model.ErrInvalidColumn
-	}
-	return columnNumber, nil
+func (j *JsonMessage) GameId() share_model.GameId {
+	return share_model.GameId(j.GameIdStr)
 }
 
-func (j *JsonMessage) RowNumber() (int, error) {
-	if j.RowNumberStr == "" {
-		return 0, model.ErrInvalidRow
-	}
-	rowNumber := util.ToInt(j.RowNumberStr)
-	if rowNumber == 0 {
-		return 0, model.ErrInvalidRow
-	}
-	return rowNumber, nil
+func (j *JsonMessage) ColumnNumber() int {
+	return util.ToInt(j.ColumnNumberStr)
 }
 
-func (j *JsonMessage) Cell() (int, int, error) {
-	columnNumber, err := j.ColumnNumber()
-	if err != nil {
-		return 0, 0, err
-	}
-	rowNumber, err := j.RowNumber()
-	if err != nil {
-		return 0, 0, err
-	}
-	return columnNumber, rowNumber, nil
+func (j *JsonMessage) RowNumber() int {
+	return util.ToInt(j.RowNumberStr)
 }
 
 type JsonHeaders struct {

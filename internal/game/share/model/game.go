@@ -23,6 +23,7 @@ type Game[PlayerT Player] interface {
 	SetStatus(status GameStatus)
 	SetStarted()
 	SetStopped()
+	IsMarkedForDeletion() bool
 	MarkForDeletion()
 
 	CreatedAt() time.Time
@@ -54,6 +55,7 @@ type Game[PlayerT Player] interface {
 	FilterPlayers(filterFn func(player PlayerT) bool) []PlayerT
 	AttachPlayer(player PlayerT)
 	DetachPlayer(player PlayerT)
+	HasUser(userId UserId) bool
 	HasPlayer(playerId PlayerId) bool
 	Player(id PlayerId) (PlayerT, bool)
 	MustPlayer(id PlayerId) PlayerT
@@ -154,6 +156,10 @@ func (g *game[PlayerT]) SetStopped() {
 	g.status = GameStatus_Stopped
 }
 
+func (g *game[PlayerT]) IsMarkedForDeletion() bool {
+	return g.status == GameStatus_MarkedForDeletion
+}
+
 func (g *game[PlayerT]) MarkForDeletion() {
 	g.SetStatus(GameStatus_MarkedForDeletion)
 }
@@ -171,6 +177,9 @@ func (g *game[PlayerT]) CanStart() bool {
 }
 
 func (g *game[PlayerT]) UpdateJoinStatus() {
+	if g.WasStarted() || g.IsMarkedForDeletion() {
+		return
+	}
 	if !g.CanJoin() {
 		g.SetStatus(GameStatus_NotJoinableAndStartable)
 		for _, player := range g.Players() {
@@ -310,13 +319,27 @@ func (g *game[PlayerT]) FilterPlayers(filterFn func(player PlayerT) bool) []Play
 }
 
 func (g *game[PlayerT]) AttachPlayer(player PlayerT) {
+	if player.Id().GameId() != g.Id() {
+		panic(ErrWrongPlayer)
+	}
 	g.players[player.Id()] = player
-	player.SetGameId(g.id)
 }
 
 func (g *game[PlayerT]) DetachPlayer(player PlayerT) {
+	if player.Id().GameId() != g.Id() {
+		panic(ErrWrongPlayer)
+	}
 	delete(g.players, player.Id())
-	player.UnsetGameId()
+	player.SetStatus(PlayerStatus_WaitingToJoin)
+}
+
+func (g *game[PlayerT]) HasUser(userId UserId) bool {
+	for playerId := range g.players {
+		if playerId.MatchUser(userId) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *game[PlayerT]) HasPlayer(playerId PlayerId) bool {
@@ -510,7 +533,7 @@ func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId Play
 			return localizer.Loc("YouLoose")
 		}
 	}
-	return player.YourMessage(localizer)
+	return player.Status().YourMessage(localizer)
 }
 
 func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
@@ -529,7 +552,7 @@ func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId
 			return localizer.Loc("PlayerLoose")
 		}
 	}
-	return player.Message(localizer)
+	return player.Status().Message(localizer)
 }
 
 func (g *game[PlayerT]) PlayerStatusIcon(playerId PlayerId) string {

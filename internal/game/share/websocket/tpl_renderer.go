@@ -3,13 +3,15 @@ package websocket
 import (
 	"bytes"
 	"io"
+
+	"github.com/gre-ory/games-go/internal/game/share/model"
 )
 
 type TplRenderer[PlayerT any] interface {
 	Render(player PlayerT) ([]byte, bool)
 }
 
-func NewTplRenderer[PlayerT any](acceptFn func(player PlayerT) (bool, any), renderFn func(w io.Writer, data any)) TplRenderer[PlayerT] {
+func NewTplRenderer[PlayerT any](acceptFn func(player PlayerT) (bool, model.Data), renderFn func(w io.Writer, data model.Data)) TplRenderer[PlayerT] {
 	return &tplRenderer[PlayerT]{
 		acceptFn: acceptFn,
 		renderFn: renderFn,
@@ -17,8 +19,8 @@ func NewTplRenderer[PlayerT any](acceptFn func(player PlayerT) (bool, any), rend
 }
 
 type tplRenderer[PlayerT any] struct {
-	acceptFn func(player PlayerT) (bool, any)
-	renderFn func(w io.Writer, data any)
+	acceptFn func(player PlayerT) (bool, model.Data)
+	renderFn func(w io.Writer, data model.Data)
 }
 
 func (t *tplRenderer[PlayerT]) Render(player PlayerT) ([]byte, bool) {
@@ -26,7 +28,7 @@ func (t *tplRenderer[PlayerT]) Render(player PlayerT) ([]byte, bool) {
 		return nil, false
 	}
 	ok := true
-	var data any
+	var data model.Data
 	if t.acceptFn != nil {
 		ok, data = t.acceptFn(player)
 	}

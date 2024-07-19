@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"sort"
 
 	"go.uber.org/zap"
@@ -13,15 +14,17 @@ import (
 // game service
 
 type GameService[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
+	GetPlayer(playerId model.PlayerId) (PlayerT, error)
+
 	GetGame(gameId model.GameId) (GameT, error)
 	GetJoinableGames() []GameT
-	GetNonJoinableGames(playerId model.PlayerId) []GameT
+	GetNonJoinableGames(userId model.UserId) []GameT
 	SortGamesByCreationTime(games []GameT) []GameT
 	FilterGamesByPlayer(games []GameT, playerId model.PlayerId) []GameT
 
-	CreateGame(player PlayerT) (GameT, error)
-	JoinGameId(gameId model.GameId, player PlayerT) (GameT, error)
-	JoinGame(game GameT, player PlayerT) (GameT, error)
+	CreateGame(user model.User) (GameT, error)
+	JoinGameId(gameId model.GameId, user model.User) (GameT, error)
+	JoinGame(game GameT, user model.User) (GameT, error)
 	StartPlayerGame(player PlayerT) (GameT, error)
 	StartGame(game GameT) (GameT, error)
 	LeavePlayerGame(player PlayerT) (GameT, error)
@@ -34,18 +37,18 @@ type GameService[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
 
 	RegisterOnJoinGame(func(game GameT, player PlayerT))
 	RegisterOnGame(func(game GameT))
-	RegisterOnLeaveGame(func(game GameT, player PlayerT))
+	RegisterOnLeaveGame(func(game GameT, userId model.UserId))
 }
 
 // //////////////////////////////////////////////////
 // game plugin
 
 type GamePlugin[PlayerT model.Player, GameT model.Game[PlayerT]] interface {
-	CanCreateGame(player PlayerT) error
-	CreateGame(player PlayerT) (GameT, error)
+	CanCreateGame(user model.User) error
+	CreateGame(user model.User) (GameT, PlayerT, error)
 
-	CanJoinGame(game GameT, player PlayerT) error
-	JoinGame(game GameT, player PlayerT) (GameT, error)
+	CanJoinGame(game GameT, user model.User) error
+	JoinGame(game GameT, user model.User) (GameT, PlayerT, error)
 
 	CanStartGame(game GameT) error
 	StartGame(game GameT) (GameT, error)
@@ -73,19 +76,32 @@ type gameService[PlayerT model.Player, GameT model.Game[PlayerT]] struct {
 	gameStore  store.GameStore[GameT]
 	onJoinFns  []func(game GameT, player PlayerT)
 	onGameFns  []func(game GameT)
-	onLeaveFns []func(game GameT, player PlayerT)
+	onLeaveFns []func(game GameT, userId model.UserId)
 	empty      GameT
+}
+
+// //////////////////////////////////////////////////
+// get player
+
+func (s *gameService[PlayerT, GameT]) GetPlayer(playerId model.PlayerId) (PlayerT, error) {
+	game, err := s.GetGame(playerId.GameId())
+	if err != nil {
+		var empty PlayerT
+		return empty, err
+	}
+	player, found := game.Player(playerId)
+	if !found {
+		var empty PlayerT
+		return empty, model.ErrPlayerNotFound
+	}
+	return player, nil
 }
 
 // //////////////////////////////////////////////////
 // get game
 
 func (s *gameService[PlayerT, GameT]) GetGame(id model.GameId) (GameT, error) {
-	game, err := s.gameStore.Get(id)
-	if err != nil {
-		return s.empty, err
-	}
-	return game, nil
+	return s.gameStore.Get(id)
 }
 
 // //////////////////////////////////////////////////
@@ -101,12 +117,12 @@ func (s *gameService[PlayerT, GameT]) GetJoinableGames() []GameT {
 // //////////////////////////////////////////////////
 // get non-joinable games
 
-func (s *gameService[PlayerT, GameT]) GetNonJoinableGames(playerId model.PlayerId) []GameT {
+func (s *gameService[PlayerT, GameT]) GetNonJoinableGames(userId model.UserId) []GameT {
 	games := make([]GameT, 0)
 	games = append(games, s.gameStore.ListStatus(model.GameStatus_NotJoinableAndStartable)...)
 	games = append(games, s.gameStore.ListStatus(model.GameStatus_Started)...)
 	games = append(games, s.gameStore.ListStatus(model.GameStatus_Stopped)...)
-	games = s.FilterGamesByPlayer(games, playerId)
+	games = s.FilterGamesByUser(games, userId)
 	return s.SortGamesByCreationTime(games)
 }
 
@@ -128,16 +144,35 @@ func (s *gameService[PlayerT, GameT]) FilterGamesByPlayer(games []GameT, playerI
 	return filtered
 }
 
+func (s *gameService[PlayerT, GameT]) FilterGamesByUser(games []GameT, userId model.UserId) []GameT {
+	filtered := make([]GameT, 0, len(games))
+	for _, game := range games {
+		if game.HasUser(userId) {
+			filtered = append(filtered, game)
+		}
+	}
+	return filtered
+}
+
 // //////////////////////////////////////////////////
 // create game
 
-func (s *gameService[PlayerT, GameT]) CreateGame(player PlayerT) (GameT, error) {
+func (s *gameService[PlayerT, GameT]) CreateGame(user model.User) (GameT, error) {
+
+	var game GameT
+	var player PlayerT
+	var err error
+
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> create-game :: user %s", user.Id()))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< create-game :: game %s %s :: player %s %s", game.Id(), game.Status().String(), player.Id(), player.Status().String()))
+	}()
 
 	//
 	// preliminary checks
 	//
 
-	if err := s.plugin.CanCreateGame(player); err != nil {
+	if err = s.plugin.CanCreateGame(user); err != nil {
 		return s.empty, err
 	}
 
@@ -145,12 +180,13 @@ func (s *gameService[PlayerT, GameT]) CreateGame(player PlayerT) (GameT, error) 
 	// join game
 	//
 
-	game, err := s.plugin.CreateGame(player)
+	game, player, err = s.plugin.CreateGame(user)
 	if err != nil {
 		return s.empty, err
 	}
-
-	game.AttachPlayer(player)
+	if !game.HasPlayer(player.Id()) {
+		game.AttachPlayer(player)
+	}
 	game.UpdateJoinStatus()
 
 	//
@@ -174,15 +210,23 @@ func (s *gameService[PlayerT, GameT]) CreateGame(player PlayerT) (GameT, error) 
 // //////////////////////////////////////////////////
 // join game
 
-func (s *gameService[PlayerT, GameT]) JoinGameId(id model.GameId, player PlayerT) (GameT, error) {
+func (s *gameService[PlayerT, GameT]) JoinGameId(id model.GameId, user model.User) (GameT, error) {
 	game, err := s.gameStore.Get(id)
 	if err != nil {
 		return s.empty, err
 	}
-	return s.JoinGame(game, player)
+	return s.JoinGame(game, user)
 }
 
-func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (GameT, error) {
+func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, user model.User) (GameT, error) {
+
+	var player PlayerT
+	var err error
+
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> join-game :: game %s %s :: user %s", game.Id(), game.Status().String(), user.Id()))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< join-game :: game %s %s :: player %s %s", game.Id(), game.Status().String(), player.Id(), player.Status().String()))
+	}()
 
 	//
 	// check status
@@ -196,7 +240,7 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 	// check player
 	//
 
-	if ok := game.HasPlayer(player.Id()); ok {
+	if ok := game.HasUser(user.Id()); ok {
 		return game, nil
 	}
 
@@ -204,7 +248,7 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 	// preliminary checks
 	//
 
-	if err := s.plugin.CanJoinGame(game, player); err != nil {
+	if err := s.plugin.CanJoinGame(game, user); err != nil {
 		return s.empty, err
 	}
 
@@ -212,11 +256,11 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 	// join game
 	//
 
-	game, err := s.plugin.JoinGame(game, player)
+	game, player, err = s.plugin.JoinGame(game, user)
 	if err != nil {
 		return s.empty, err
 	}
-	if !player.HasGameId() {
+	if !game.HasPlayer(player.Id()) {
 		game.AttachPlayer(player)
 	}
 	game.UpdateJoinStatus()
@@ -243,9 +287,6 @@ func (s *gameService[PlayerT, GameT]) JoinGame(game GameT, player PlayerT) (Game
 // start game
 
 func (s *gameService[PlayerT, GameT]) StartPlayerGame(player PlayerT) (GameT, error) {
-	if !player.HasGameId() {
-		return s.empty, model.ErrPlayerNotInGame
-	}
 	game, err := s.gameStore.Get(player.GameId())
 	if err != nil {
 		return s.empty, err
@@ -254,6 +295,11 @@ func (s *gameService[PlayerT, GameT]) StartPlayerGame(player PlayerT) (GameT, er
 }
 
 func (s *gameService[PlayerT, GameT]) StartGame(game GameT) (GameT, error) {
+
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> start-game :: game %s %s", game.Id(), game.Status().String()))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< start-game :: game %s %s", game.Id(), game.Status().String()))
+	}()
 
 	//
 	// preliminary checks
@@ -309,6 +355,11 @@ func (s *gameService[PlayerT, GameT]) LeavePlayerGame(player PlayerT) (GameT, er
 
 func (s *gameService[PlayerT, GameT]) LeaveGame(game GameT, player PlayerT) (GameT, error) {
 
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> leave-game :: game %s %s :: player %s %s", game.Id(), game.Status().String(), player.Id(), player.Status().String()))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< leave-game :: game %s %s :: player %s %s", game.Id(), game.Status().String(), player.Id(), player.Status().String()))
+	}()
+
 	//
 	// check status
 	//
@@ -341,26 +392,30 @@ func (s *gameService[PlayerT, GameT]) LeaveGame(game GameT, player PlayerT) (Gam
 	if err != nil {
 		return s.empty, err
 	}
-	if player.HasGameId() {
-		game.UpdateJoinStatus()
-	}
 	game.UpdateJoinStatus()
-	player.SetStatus(model.PlayerStatus_WaitingToJoin)
 
 	//
 	// save game
 	//
 
-	game, err = s.SaveGame(game)
-	if err != nil {
-		return s.empty, err
+	if game.IsMarkedForDeletion() {
+		err = s.deleteGame(game)
+		if err != nil {
+			return s.empty, err
+		}
+	} else {
+		game, err = s.SaveGame(game)
+		if err != nil {
+			return s.empty, err
+		}
 	}
 
 	//
 	// callbacks
 	//
 
-	s.onLeaveGame(game, player)
+	userId := player.Id().UserId()
+	s.onLeaveGame(game, userId)
 
 	return game, nil
 }
@@ -369,6 +424,11 @@ func (s *gameService[PlayerT, GameT]) LeaveGame(game GameT, player PlayerT) (Gam
 // stop game
 
 func (s *gameService[PlayerT, GameT]) StopGame(game GameT) (GameT, error) {
+
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> stop-game :: game %s %s", game.Id(), game.Status().String()))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< stop-game :: game %s %s", game.Id(), game.Status().String()))
+	}()
 
 	//
 	// check status
@@ -393,6 +453,11 @@ func (s *gameService[PlayerT, GameT]) StopGame(game GameT) (GameT, error) {
 	game, err := s.plugin.StopGame(game)
 	if err != nil {
 		return s.empty, err
+	}
+	for _, player := range game.Players() {
+		if !player.Status().HasPlayed() {
+			player.SetStatus(model.PlayerStatus_Played)
+		}
 	}
 	if !game.IsStopped() {
 		game.SetStopped()
@@ -428,6 +493,11 @@ func (s *gameService[PlayerT, GameT]) DeleteGameId(id model.GameId, playerId mod
 }
 
 func (s *gameService[PlayerT, GameT]) DeleteGame(game GameT, playerId model.PlayerId) error {
+
+	s.logger.Info(fmt.Sprintf("[DEBUG] >>> delete-game :: game %s %s :: player %s", game.Id(), game.Status().String(), playerId))
+	defer func() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] <<< delete-game :: game %s %s :: player %s", game.Id(), game.Status().String(), playerId))
+	}()
 
 	//
 	// check status
@@ -504,12 +574,12 @@ func (s *gameService[PlayerT, GameT]) onGame(game GameT) {
 	}
 }
 
-func (s *gameService[PlayerT, GameT]) RegisterOnLeaveGame(onLeaveFn func(game GameT, player PlayerT)) {
+func (s *gameService[PlayerT, GameT]) RegisterOnLeaveGame(onLeaveFn func(game GameT, userId model.UserId)) {
 	s.onLeaveFns = append(s.onLeaveFns, onLeaveFn)
 }
 
-func (s *gameService[PlayerT, GameT]) onLeaveGame(game GameT, player PlayerT) {
+func (s *gameService[PlayerT, GameT]) onLeaveGame(game GameT, userId model.UserId) {
 	for _, onLeaveFn := range s.onLeaveFns {
-		onLeaveFn(game, player)
+		onLeaveFn(game, userId)
 	}
 }

@@ -2,8 +2,8 @@
 <div id="user-avatar-modal" class="modal" _="on closeModal add .closing then wait for animationend then remove me">
 	<div class="modal-underlay" _="on click trigger closeModal"></div>
 	<div class="modal-content">
-		{{- $current_avatar := .user.Avatar }}
-		{{- range $i, $group := .available_avatars }}
+		{{- $current_avatar := .User.Avatar }}
+		{{- range $i, $group := .AvailableAvatars }}
 		<div class="cols-5">
 		{{- range $j, $avatar := $group }}
 		{{- if eq $avatar $current_avatar }}

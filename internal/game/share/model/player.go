@@ -1,34 +1,23 @@
 package model
 
 import (
-	"html/template"
 	"strings"
-
-	"github.com/gre-ory/games-go/internal/util/loc"
 )
 
 // //////////////////////////////////////////////////
 // player
 
 type Player interface {
+	User() User
+
 	HasId() bool
 	Id() PlayerId
-	Avatar() UserAvatar
-	SetAvatar(avatar UserAvatar)
-	Name() UserName
-	SetName(name UserName)
-	Language() UserLanguage
-	SetLanguage(language UserLanguage)
-	SetCookie(cookie *Cookie)
+
+	GameId() GameId
 
 	IsPlaying() bool
 	Status() PlayerStatus
 	SetStatus(status PlayerStatus)
-
-	HasGameId() bool
-	GameId() GameId
-	SetGameId(gameId GameId)
-	UnsetGameId()
 
 	HasScore() bool
 	Score() PlayerScore
@@ -50,9 +39,6 @@ type Player interface {
 	SetLoose()
 	UnsetResult()
 
-	YourMessage(localizer loc.Localizer) template.HTML
-	Message(localizer loc.Localizer) template.HTML
-
 	LabelSlice() []string
 	Labels() string
 }
@@ -61,10 +47,8 @@ type Player interface {
 // base player
 
 type player struct {
+	user     User
 	id       PlayerId
-	avatar   UserAvatar
-	name     UserName
-	language UserLanguage
 	status   PlayerStatus
 	gameId   GameId
 	hasScore bool
@@ -73,19 +57,24 @@ type player struct {
 	result   PlayerResult
 }
 
-func NewPlayer(id PlayerId) Player {
+func NewPlayer(gameId GameId, userId UserId) Player {
 	return &player{
-		id: id,
+		user:   NewUser(userId),
+		id:     NewPlayerId(gameId, userId),
+		gameId: gameId,
 	}
 }
 
-func NewPlayerFromCookie(cookie *Cookie) Player {
+func NewPlayerFromUser(gameId GameId, user User) Player {
 	return &player{
-		id:       cookie.PlayerId(),
-		avatar:   cookie.Avatar,
-		name:     cookie.Name,
-		language: cookie.Language,
+		user:   NewUserFromUser(user),
+		id:     NewPlayerId(gameId, user.Id()),
+		gameId: gameId,
 	}
+}
+
+func (p *player) User() User {
+	return p.user
 }
 
 func (p *player) HasId() bool {
@@ -94,43 +83,6 @@ func (p *player) HasId() bool {
 
 func (p *player) Id() PlayerId {
 	return p.id
-}
-
-func (p *player) Avatar() UserAvatar {
-	return p.avatar
-}
-
-func (p *player) SetAvatar(avatar UserAvatar) {
-	p.avatar = avatar
-}
-
-func (p *player) Name() UserName {
-	return p.name
-}
-
-func (p *player) SetName(name UserName) {
-	p.name = name
-}
-
-func (p *player) Language() UserLanguage {
-	return p.language
-}
-
-func (p *player) LocLanguage() loc.Language {
-	return loc.Language(p.language)
-}
-
-func (p *player) SetLanguage(language UserLanguage) {
-	p.language = language
-}
-
-func (p *player) SetCookie(cookie *Cookie) {
-	if p.id != cookie.PlayerId() {
-		panic(ErrInvalidCookie)
-	}
-	p.avatar = cookie.Avatar
-	p.name = cookie.Name
-	p.language = cookie.Language
 }
 
 func (p *player) IsPlaying() bool {
@@ -145,20 +97,8 @@ func (p *player) SetStatus(status PlayerStatus) {
 	p.status = status
 }
 
-func (p *player) HasGameId() bool {
-	return p.gameId != ""
-}
-
 func (p *player) GameId() GameId {
 	return p.gameId
-}
-
-func (p *player) SetGameId(gameId GameId) {
-	p.gameId = gameId
-}
-
-func (p *player) UnsetGameId() {
-	p.gameId = ""
 }
 
 func (p *player) HasScore() bool {
@@ -231,34 +171,6 @@ func (p *player) SetLoose() {
 
 func (p *player) UnsetResult() {
 	p.result = PlayerResult_Unknown
-}
-
-func (p *player) YourMessage(localizer loc.Localizer) template.HTML {
-	switch p.Status() {
-	case PlayerStatus_WaitingToJoin:
-		return localizer.Loc("YouWaitingToJoin")
-	case PlayerStatus_WaitingToStart:
-		return localizer.Loc("YouWaitingToStart")
-	case PlayerStatus_WaitingToPlay:
-		return localizer.Loc("YouWaitingToPlay")
-	case PlayerStatus_Playing:
-		return localizer.Loc("YouPlaying")
-	}
-	return ""
-}
-
-func (p *player) Message(localizer loc.Localizer) template.HTML {
-	switch p.Status() {
-	case PlayerStatus_WaitingToJoin:
-		return localizer.Loc("PlayerWaitingToJoin")
-	case PlayerStatus_WaitingToStart:
-		return localizer.Loc("PlayerWaitingToStart")
-	case PlayerStatus_WaitingToPlay:
-		return localizer.Loc("PlayerWaitingToPlay")
-	case PlayerStatus_Playing:
-		return localizer.Loc("PlayerPlaying")
-	}
-	return ""
 }
 
 func (p *player) LabelSlice() []string {

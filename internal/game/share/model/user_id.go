@@ -15,8 +15,8 @@ func NewUserId() UserId {
 	return UserId(generateUserId())
 }
 
-func (i UserId) Validate() error {
-	if i == "" {
+func (id UserId) Validate() error {
+	if id == "" {
 		return ErrMissingUserId
 	}
 	return nil

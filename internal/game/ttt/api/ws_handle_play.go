@@ -4,23 +4,19 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/gre-ory/games-go/internal/game/ttt/model"
-	"github.com/gre-ory/games-go/internal/util"
 )
 
-func (s *gameServer) HandlePlay(player *model.Player, message JsonMessage) error {
-	s.logger.Info("[ws] play", zap.Any("message", message))
+func (s *gameServer) HandlePlay(player *model.Player, x, y int) error {
+	s.logger.Info("[ws] play", zap.Int("x", x), zap.Int("y", y))
 
-	playX := util.ToInt(message.PlayX)
-	if playX == 0 {
+	if x == 0 {
 		return model.ErrMissingPlayX
 	}
-
-	playY := util.ToInt(message.PlayY)
-	if playY == 0 {
+	if y == 0 {
 		return model.ErrMissingPlayY
 	}
 
-	game, err := s.service.PlayPlayerGame(player, playX, playY)
+	game, err := s.service.PlayPlayerGame(player, x, y)
 	if err != nil {
 		return err
 	}
