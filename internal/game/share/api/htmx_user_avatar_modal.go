@@ -28,7 +28,11 @@ func (s *cookieServer) htmx_user_avatar_modal(w http.ResponseWriter, r *http.Req
 			break
 		}
 
-		s.hxServer.Render(w, "user-avatar-modal", cookie.Data().With("available_avatars", model.GetAvailableAvatars()))
+		data := model.Data{
+			"User":             cookie,
+			"AvailableAvatars": model.GetAvailableAvatars(),
+		}
+		s.hxServer.Render(w, "user-avatar-modal", data)
 		return
 	}
 

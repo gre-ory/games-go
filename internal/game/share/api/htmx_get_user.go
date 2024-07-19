@@ -28,7 +28,10 @@ func (s *cookieServer) htmx_get_user(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		s.hxServer.Render(w, "user", cookie.Data())
+		data := model.Data{
+			"User": cookie,
+		}
+		s.hxServer.Render(w, "user", data)
 		return
 	}
 

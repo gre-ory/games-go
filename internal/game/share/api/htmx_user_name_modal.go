@@ -3,8 +3,9 @@ package api
 import (
 	"net/http"
 
-	"github.com/gre-ory/games-go/internal/game/share/model"
 	"github.com/gre-ory/games-go/internal/util"
+
+	"github.com/gre-ory/games-go/internal/game/share/model"
 )
 
 // //////////////////////////////////////////////////
@@ -28,7 +29,10 @@ func (s *cookieServer) htmx_user_name_modal(w http.ResponseWriter, r *http.Reque
 			break
 		}
 
-		s.hxServer.Render(w, "user-name-modal", cookie.Data())
+		data := model.Data{
+			"User": cookie,
+		}
+		s.hxServer.Render(w, "user-name-modal", data)
 		return
 	}
 

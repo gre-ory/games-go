@@ -21,3 +21,7 @@ func Key[T comparable, U any](key T, value U) T {
 func Value[T comparable, U any](key T, value U) U {
 	return value
 }
+
+func Values[T comparable, U any](items map[T]U) []U {
+	return ConvertToList(items, Value)
+}

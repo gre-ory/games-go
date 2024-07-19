@@ -2,8 +2,8 @@
 <div id="user-language-modal" class="modal" _="on closeModal add .closing then wait for animationend then remove me">
 	<div class="modal-underlay" _="on click trigger closeModal"></div>
 	<div class="modal-content">
-		{{- $current_language := .user.Language }}
-		{{- range $i, $group := .available_languages }}
+		{{- $current_language := .User.Language }}
+		{{- range $i, $group := .AvailableLanguages }}
 		<div class="cols-5">
 		{{- range $j, $language := $group }}
 		{{- if eq $language $current_language }}
