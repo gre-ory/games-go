@@ -1,0 +1,70 @@
+
+/* ------------------------- card ------------------------- */
+
+body {
+    --card-width: 50px;
+    --card-height: 70px;
+    --card-border-radius: 7px;
+    --card-background-color: white;
+    --card-border-color: #777;
+    --card-border-size: 3px;
+}
+
+.card,
+.card-spot {
+  display: inline-block;
+  width: var(--card-width);
+  height: var(--card-height);
+  background-color: var(--card-background-color);
+  border-radius: var(--card-border-radius);
+  border: 1px solid var(--card-border-color);
+}
+
+.card-front,
+.card-back {
+    margin: var(--card-border-size);
+    width: calc( var(--card-width) - 2 * var(--card-border-size) );
+    height: calc( var(--card-height) - 2 * var(--card-border-size) );
+    border-radius: var(--card-border-radius);
+}
+
+.card-front {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+    border-radius: calc(var(--card-border-radius)/1.5);
+}
+
+.card-back {
+    --card-border-size: 0px;
+    background-color: #e8e8e8;
+    opacity: 1;
+    background-size: 2px 2px;
+    background-image: repeating-linear-gradient(45deg, #c1c1c1 0, #c1c1c1 0.5px, #e8e8e8 0, #e8e8e8 50%);
+}
+
+.card-spot {
+    border: 1px dashed black;
+    background-color: transparent;
+}
+
+/* ------------------------- deck ------------------------- */
+
+.deck {
+    position: relative;
+}
+
+.deck .nb-card {
+    border-radius: 5px;
+    padding: 3px 5px;
+    text-align: center;
+    line-height: 12px;
+    font-size: 12px;
+    border: 1px solid var(--color-gray);
+    background-color: white;
+    color: var(--color-gray);
+    z-index: 3;
+    position: absolute;
+    left: -6px;
+    bottom: -6px;
+}

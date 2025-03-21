@@ -17,6 +17,7 @@ type HubServer[PlayerT Player, GameT Game[PlayerT]] interface {
 
 	Hub() Hub[PlayerT]
 
+	GetActiveUser(id model.UserId) (User, error)
 	GetUser(id model.UserId) (User, error)
 	RegisterUser(user User)
 	UnregisterUserId(id model.UserId)
@@ -107,6 +108,17 @@ func (s *hubServer[PlayerT, GameT]) Hub() Hub[PlayerT] {
 
 // //////////////////////////////////////////////////
 // user
+
+func (s *hubServer[PlayerT, GameT]) GetActiveUser(id model.UserId) (User, error) {
+	user, err := s.hub.GetUser(id)
+	if err != nil {
+		return nil, err
+	}
+	if user.IsInactive() {
+		return nil, model.ErrInactiveUser
+	}
+	return user, nil
+}
 
 func (s *hubServer[PlayerT, GameT]) GetUser(id model.UserId) (User, error) {
 	return s.hub.GetUser(id)

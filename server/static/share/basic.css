@@ -1,0 +1,235 @@
+
+/* ------------------------- body ------------------------- */
+
+body {
+    /* font-family:monospace; */
+    /* font-size: 42px;  */
+    font-family: "Luciole", monospace, Georgia;
+    /* font-family: "Luciole"; */
+}
+
+button {
+    font-family: Luciole;
+}
+
+body {
+
+    /* Blueberry: #6B7A8F
+    Apricot: #F7882F
+    Citrus: #F7C331
+    Apple Core: #DCC7AA */
+
+    /* Are ya yellow?!: #feda6a
+    Silver Fox: #d4d4dc
+    Deep Matte Grey: #393f4d
+    Dark Slate: #1d1e22 */
+
+    /* Ol’ trusty blue: #368cbf
+    Accent color green: #7ebc59
+    Dark Slate: #33363b
+    Light grey: #eaeaea */
+
+    --color-red: #b71348;
+    --color-blue: #2688d1;
+    --color-light-blue: #72c2ff;
+    --color-green: #03ca88;
+    --color-light-green: #78eeaf;
+    --color-yellow: #f2ae16;
+    --color-light-yellow: #f7cf7a;
+    --color-dark: #042b49;
+    --color-brown: #a47e68;
+    --color-light-brown: #d5bdaf;
+    --color-light: #f0f2f4;
+    --color-light-gray: rgb(185, 185, 185);
+    --color-gray: #777;
+
+    --color-error: var(--color-red);
+    --color-info: var(--color-green);
+    --color-win: var(--color-green);
+    --color-tie: var(--color-dark);
+    --color-loose: var(--color-red);
+
+    --icon-size: 14px;
+    --icon-color: var(--color-dark);
+
+    --color-player-1: var(--color-yellow);
+    --color-player-2: var(--color-blue);
+
+    --color-disabled: var(--color-gray);
+    --color-loading: var(--color-yellow);
+    --color-error: var(--color-red);
+    --color-success: var(--color-green);
+
+    /* background: #262626; */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* ------------------------- skeleton ------------------------- */
+
+body {
+    width: 100vw;
+    height: 100vh;
+
+    --width: 500px;
+    --border-spacing: 10px;
+}
+
+@media ( max-width: 500px ) {
+    body {
+        --width: 100vw;
+    }
+}
+
+@media ( max-width: 300px ) {
+    body {
+        --width: 300px;
+        min-width: 300px;
+    }
+}
+
+body {
+    --header-height: calc(0.1 * var(--width));
+    --players-width: var(--width);
+    --players-height: 85px;
+    --players-border-spacing: var(--border-spacing);
+    --board-height: var(--width);
+    --player-board-border-spacing: var(--border-spacing);
+    --my-board-border-spacing: var(--border-spacing);
+    --player-height: calc(0.5 * var(--board-height));
+    --height: calc(var(--header-height) + var(--players-height) + var(--board-height) + var(--player-board-height));
+}
+
+#user {
+    display: inline;
+    position: absolute;
+    top: 0;
+    /* right: calc(50% - ( var(--width) / 2 ) - 10px); */
+    right: calc(50% - ( var(--width) / 2 ));
+    height: var(--header-height);
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+}
+
+#user .name {
+    margin-left: 10px;
+    margin-right: 10px;
+    max-width: calc(var(--width) * 0.25);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 30px;
+}
+
+#user .id {
+    display: none;
+}
+
+/* #user [class^='language-'] {
+    margin-left: 10px;
+    text-transform: uppercase;
+    font-size: small;
+    background: rgba(0,0,0,0.2);
+    padding: 5px;
+    border-radius: 5px;
+} */
+
+/* #ws-status {
+    display: none;
+} */
+
+#main {
+    width: var(--width);
+    margin: 0 auto;
+}
+
+#header {
+    width: var(--width);
+    height: var(--header-height);
+    line-height: var(--header-height);
+}
+
+#header .title {
+    display: inline-block;
+    margin-left: calc(0.5 * var(--header-height));
+}
+
+#content {
+    padding-bottom: 10px;
+    /* min-height: calc(var(--players-height) + var(--board-height)); */
+    min-height: calc(100vh - var(--header-height) - 10px);
+}
+
+/* ------------------------- style ------------------------- */
+
+body {
+    background-color: rgb(53, 65, 106);
+}
+
+#user {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#user .name {
+    font-weight: bold;
+    color: white;    
+    font-size: small;
+}
+
+#main {
+    background-color: rgb(227, 227, 227);
+}
+
+#header {
+    background-color: var(--color-green);
+    font-weight: bold;
+    color: white;
+}
+
+/* ------------------------- websocket status ------------------------- */
+
+#ws-status {
+    float: left;
+    width: 24px;
+    height: 24px;
+    margin-top: 5px;
+    margin-left: 5px;
+    color: white;
+    position: absolute;
+    bottom: 0;
+    /* right: 0; */
+    right: calc(50% - ( var(--width) / 2 ));
+    padding: 10px;
+    background: rgba(255,255,255,0.4);
+}
+
+#ws-status #cloud-on,
+#ws-status #cloud-connecting,
+#ws-status #cloud-error,
+#ws-status #cloud-off {
+    display: none;
+}
+
+#ws-status.cloud-on #cloud-on {
+    display: inline-block;
+    fill: var(--color-green);
+}
+
+#ws-status.cloud-connecting #cloud-connecting {
+    display: inline-block;
+    fill: var(--color-yellow);
+}
+
+#ws-status.cloud-error #cloud-error {
+    display: inline-block;
+    fill: var(--color-red);
+}
+
+#ws-status.cloud-off #cloud-off {
+    display: inline-block;
+    fill: var(--color-red);
+}

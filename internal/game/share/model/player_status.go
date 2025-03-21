@@ -67,34 +67,34 @@ func (s PlayerStatus) String() string {
 	}
 }
 
-func (s PlayerStatus) YourMessage(localizer loc.Localizer) template.HTML {
+func (s PlayerStatus) YourMessage(localizer loc.Localizer, args ...any) template.HTML {
 	switch s {
 	case PlayerStatus_WaitingToJoin:
-		return localizer.Loc("YouWaitingToJoin")
+		return localizer.Loc("YouWaitingToJoin", args...)
 	case PlayerStatus_WaitingToStart:
-		return localizer.Loc("YouWaitingToStart")
+		return localizer.Loc("YouWaitingToStart", args...)
 	case PlayerStatus_WaitingToPlay:
-		return localizer.Loc("YouWaitingToPlay")
+		return localizer.Loc("YouWaitingToPlay", args...)
 	case PlayerStatus_Playing:
-		return localizer.Loc("YouPlaying")
+		return localizer.Loc("YouPlaying", args...)
 	case PlayerStatus_Played:
-		return localizer.Loc("YouPlayed")
+		return localizer.Loc("YouPlayed", args...)
 	}
 	return ""
 }
 
-func (s PlayerStatus) Message(localizer loc.Localizer) template.HTML {
+func (s PlayerStatus) Message(localizer loc.Localizer, args ...any) template.HTML {
 	switch s {
 	case PlayerStatus_WaitingToJoin:
-		return localizer.Loc("PlayerWaitingToJoin")
+		return localizer.Loc("PlayerWaitingToJoin", args...)
 	case PlayerStatus_WaitingToStart:
-		return localizer.Loc("PlayerWaitingToStart")
+		return localizer.Loc("PlayerWaitingToStart", args...)
 	case PlayerStatus_WaitingToPlay:
-		return localizer.Loc("PlayerWaitingToPlay")
+		return localizer.Loc("PlayerWaitingToPlay", args...)
 	case PlayerStatus_Playing:
-		return localizer.Loc("PlayerPlaying")
+		return localizer.Loc("PlayerPlaying", args...)
 	case PlayerStatus_Played:
-		return localizer.Loc("PlayerPlayed")
+		return localizer.Loc("PlayerPlayed", args...)
 	}
 	return ""
 }

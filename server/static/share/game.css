@@ -330,60 +330,149 @@ body {
 	cursor: pointer;
 }
 
-/* ------------------------- select ------------------------- */
+/* ------------------------- action: select, drop, flip, off ------------------------- */
 
 body {
-	--select-border-radius: 10px;
-	--select-margin: 5px;
-	--select-padding: 5px;
-	--select-vpadding: var(--select-padding);
-	--select-hpadding: calc(2 * var(--select-padding));
-	--select-background-color: transparent;
-	--select-color: black;
-	--select-on-background-color: #7ac8fd;
-	--select-on-color: black;
-	--select-off-background-color: rgba(0,0,0,0.1);
-	--select-off-color: #999;
+	--action-border-radius: 10px;
+	--action-size: 5px;
+	--action-margin: 2px;
 }
 
-.select {
-	margin: var(--select-margin);
-	padding: var(--select-vpadding) var(--select-hpadding);
+.select,
+.drop,
+.flip,
+.off {
+	--action-min-margin: var(--action-margin);
+	--action-max-margin: calc( var(--action-size) + var(--action-margin) );
+	--action-margin: var(--action-max-margin) var(--action-max-margin) var(--action-min-margin) var(--action-min-margin);
+	
+	margin: var(--select-margin-off);
 	border-radius: var(--select-border-radius);
 
 	display: inline-flex;
 	justify-content: center;
 	align-items: center;
 
-	background-color: var(--select-background-color);
-    color: var(--select-color);
+	cursor: pointer;
+
+	transition: ease 0.2s;
+}
+
+/* ------------------------- action: select ------------------------- */
+
+body {
+	--select-shadow-color: rgba(0,0,0,0.1);
+	--select-highlight-size: 10px;
+	--select-highlight-color: #7ac9fd;
+	--selected-color: #fdd37a;
+}
+
+.select {
+	--select-margin-off: var(--action-off);
+	--select-margin-on: var(--action-min-margin) var(--action-min-margin) var(--action-max-margin) var(--action-max-margin);
+	
+	margin: var(--select-margin-off);
+	box-shadow: 0 0 var(--select-highlight-size) var(--select-highlight-color);	
+}
+
+.select:hover,
+.select:active {
+	cursor: grab;
+	margin: var(--select-margin-on);
+	box-shadow: calc( -1 * var(--select-size) ) var(--select-size) var(--select-size) var(--select-shadow-color);
+}
+
+.selected,
+.selected:hover,
+.selected:active {
+	cursor: default;
+	margin: var(--select-margin-off);
+	box-shadow: 0 0 var(--select-highlight-size) var(--select-on-color);	
+}
+
+.select.off,
+.select.off:hover,
+.select.off:active {
+	cursor: default;
+	margin: var(--select-margin-off);
+	box-shadow: none;
+	opacity: var(--select-off-opacity);
+}
+
+/* ------------------------- actions: drop ------------------------- */
+
+body {
+
+	--drop-shadow-color: var(--select-shadow-color);
+	--drop-highlight-size: var(--select-highlight-size);
+	--drop-highlight-color: var(--select-highlight-color);
+	--drop-on-color: var(--select-on-color);
+}
+
+.drop {
+	--drop-min-margin: var(--drop-margin);
+	--drop-max-margin: calc( var(--drop-size) + var(--drop-margin) );
+	--drop-margin: var(--drop-max-margin) var(--drop-max-margin) var(--drop-min-margin) var(--drop-min-margin);
+
+	margin: var(--drop-margin);
+	border-radius: var(--drop-border-radius);
+
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
 
 	cursor: pointer;
 
 	transition: ease 0.2s;
 }
 
-.select:hover,
-.select:active {
-	--select-background-color: var(--select-on-background-color);
-	--select-color: var(--select-on-color);
+.drop {
+	box-shadow: 0 0 var(--drop-highlight-size) var(--drop-highlight-color);	
+}
+
+.drop:hover,
+.drop:active {
 	cursor: pointer;
 }
 
-.select.on,
-.select.on:hover,
-.select.on:active {
-	--select-background-color: var(--select-on-background-color);
-	--select-color: var(--select-on-color);
+.drop.on,
+.drop.on:hover,
+.drop.on:active {
 	cursor: default;
 }
 
-.select.off,
-.select.off:hover,
-.select.off:active {
-	--select-background-color: var(--select-off-background-color);
-	--select-color: var(--select-off-color);
+/* ------------------------- action: off ------------------------- */
+
+body {
+	--off-border-radius: var(--select-border-radius);
+	--off-size: var(--select-size);
+	--off-margin: var(--select-margin);
+
+	--off-opacity: 1;
+}
+
+.off {
+	--off-min-margin: var(--off-margin);
+	--off-max-margin: calc( var(--off-size) + var(--off-margin) );
+	--off-margin: var(--off-max-margin) var(--off-max-margin) var(--off-min-margin) var(--off-min-margin);
+
+	margin: var(--off-margin);
+	border-radius: var(--off-border-radius);
+
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+
+	cursor: pointer;
+
+	transition: ease 0.2s;
+}
+
+.off,
+.off:hover,
+.off:active {
 	cursor: default;
+	opacity: var(--off-opacity);
 }
 
 /* ------------------------- disable ------------------------- */

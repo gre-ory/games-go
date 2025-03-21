@@ -7,7 +7,7 @@
 		<div class="cols-5">
 		{{- range $j, $language := $group }}
 		{{- if eq $language $current_language }}
-		<div class="col-1 center select on">
+		<div class="col-1 center selected">
 			<div
 				class="language-{{ $language }} m"
 			 	_="on click trigger closeModal"></div>

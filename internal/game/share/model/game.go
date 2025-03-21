@@ -31,6 +31,7 @@ type Game[PlayerT Player] interface {
 	CanJoin() bool
 	CanStart() bool
 	UpdateJoinStatus()
+	IsEnded() bool
 
 	Round() int
 	FirstRound()
@@ -51,6 +52,7 @@ type Game[PlayerT Player] interface {
 
 	HasPlayers() bool
 	NbPlayer() int
+	NbOtherPlayer() int
 	Players() []PlayerT
 	FilterPlayers(filterFn func(player PlayerT) bool) []PlayerT
 	AttachPlayer(player PlayerT)
@@ -79,8 +81,8 @@ type Game[PlayerT Player] interface {
 	SetWinners(winnerIds ...PlayerId)
 	SetTie()
 
-	YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML
-	PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML
+	YourPlayerMessage(localizer loc.Localizer, playerId PlayerId, args ...any) template.HTML
+	PlayerMessage(localizer loc.Localizer, playerId PlayerId, args ...any) template.HTML
 	PlayerStatusIcon(playerId PlayerId) string
 
 	LabelSlice() []string
@@ -198,6 +200,15 @@ func (g *game[PlayerT]) UpdateJoinStatus() {
 	}
 }
 
+func (g *game[PlayerT]) IsEnded() bool {
+	for _, player := range g.Players() {
+		if !player.Status().HasPlayed() {
+			return false
+		}
+	}
+	return true
+}
+
 func (g *game[PlayerT]) Start() {
 	g.SetStatus(GameStatus_Started)
 
@@ -310,6 +321,13 @@ func (g *game[PlayerT]) NbPlayer() int {
 	return len(g.players)
 }
 
+func (g *game[PlayerT]) NbOtherPlayer() int {
+	if g.HasPlayers() {
+		return g.NbPlayer() - 1
+	}
+	return 0
+}
+
 func (g *game[PlayerT]) Players() []PlayerT {
 	return dict.Values(g.players)
 }
@@ -402,7 +420,7 @@ func (g *game[PlayerT]) SetPlayingPlayer(playerIds ...PlayerId) {
 		if list.Contains(playerIds, player.Id()) {
 			count++
 			player.SetStatus(PlayerStatus_Playing)
-		} else {
+		} else if !player.Status().HasPlayed() {
 			player.SetStatus(PlayerStatus_WaitingToPlay)
 		}
 	}
@@ -517,42 +535,50 @@ func (g *game[PlayerT]) SetTie() {
 
 }
 
-func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
+func (g *game[PlayerT]) YourPlayerMessage(localizer loc.Localizer, playerId PlayerId, args ...any) template.HTML {
 	player, found := g.Player(playerId)
 	if !found {
 		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	message := player.YourMessage()
+	if message != nil {
+		return localizer.LocalizeMessage(message)
 	}
 	if player.HasResult() {
 		result := player.Result()
 		switch {
 		case result.IsWin():
-			return localizer.Loc("YouWin")
+			return localizer.Loc("YouWin", args...)
 		case result.IsTie():
-			return localizer.Loc("YouTie")
+			return localizer.Loc("YouTie", args...)
 		case result.IsLoose():
-			return localizer.Loc("YouLoose")
+			return localizer.Loc("YouLoose", args...)
 		}
 	}
-	return player.Status().YourMessage(localizer)
+	return player.Status().YourMessage(localizer, args...)
 }
 
-func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId) template.HTML {
+func (g *game[PlayerT]) PlayerMessage(localizer loc.Localizer, playerId PlayerId, args ...any) template.HTML {
 	player, found := g.Player(playerId)
 	if !found {
 		return localizer.Loc("Error", ErrPlayerNotFound.Error())
+	}
+	message := player.Message()
+	if message != nil {
+		return localizer.LocalizeMessage(message)
 	}
 	if player.HasResult() {
 		result := player.Result()
 		switch {
 		case result.IsWin():
-			return localizer.Loc("PlayerWin")
+			return localizer.Loc("PlayerWin", args...)
 		case result.IsTie():
-			return localizer.Loc("PlayerTie")
+			return localizer.Loc("PlayerTie", args...)
 		case result.IsLoose():
-			return localizer.Loc("PlayerLoose")
+			return localizer.Loc("PlayerLoose", args...)
 		}
 	}
-	return player.Status().Message(localizer)
+	return player.Status().Message(localizer, args...)
 }
 
 func (g *game[PlayerT]) PlayerStatusIcon(playerId PlayerId) string {

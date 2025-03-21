@@ -1,10 +1,13 @@
 package service
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 
 	share_model "github.com/gre-ory/games-go/internal/game/share/model"
 	share_service "github.com/gre-ory/games-go/internal/game/share/service"
+	"github.com/gre-ory/games-go/internal/util/loc"
 
 	"github.com/gre-ory/games-go/internal/game/skj/model"
 	"github.com/gre-ory/games-go/internal/game/skj/store"
@@ -46,6 +49,10 @@ func (s *gameService) DrawDiscardCard(player *model.Player) (*model.Game, error)
 		return nil, err
 	}
 	game.SelectedCard = &card
+
+	player.SetYourMessage(loc.NewMessage("YouPutting").With("card", card.Value()))
+	player.SetMessage(loc.NewMessage("PlayerHasDrawn").With("card", card.Value()))
+
 	return game, nil
 }
 
@@ -61,7 +68,12 @@ func (s *gameService) DrawCard(player *model.Player) (*model.Game, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	game.SelectedCard = &card
+
+	player.SetYourMessage(loc.NewMessage("YouPuttingOrDiscarding").With("card", card.Value()))
+	player.SetMessage(loc.NewMessage("PlayerHasDrawn").With("card", card.Value()))
+
 	return game, nil
 }
 
@@ -81,8 +93,13 @@ func (s *gameService) PutCard(player *model.Player, columnNumber, rowNumber int)
 	if err != nil {
 		return nil, err
 	}
+
 	game.DiscardDeck.Add(cardToDiscard)
-	return game, nil
+	game.SelectedCard = nil
+
+	player.ResetMessages()
+
+	return s.endPlayerRound(player, game, board)
 }
 
 func (s *gameService) DiscardCard(player *model.Player) (*model.Game, error) {
@@ -94,7 +111,13 @@ func (s *gameService) DiscardCard(player *model.Player) (*model.Game, error) {
 		return nil, model.ErrMissingSelectedCard
 	}
 	game.DiscardDeck.Add(*game.SelectedCard)
+
+	player.SetYourMessage(loc.NewMessage("YouFlipping"))
+	player.SetMessage(loc.NewMessage("PlayerHasDiscarded").With("card", game.SelectedCard.Value()))
+
+	game.SelectedCard = nil
 	game.ShouldFlip = true
+
 	return game, nil
 }
 
@@ -114,12 +137,46 @@ func (s *gameService) FlipCard(player *model.Player, columnNumber, rowNumber int
 	if err != nil {
 		return nil, err
 	}
+	game.ShouldFlip = false
 
-	// check if all cells are flipped
-	if board.IsFlipped() {
+	return s.endPlayerRound(player, game, board)
+}
 
+func (s *gameService) endPlayerRound(player *model.Player, game *model.Game, board *model.PlayerBoard) (*model.Game, error) {
+
+	if !game.LastTurn {
+		// check if all cells are flipped
+		if board.IsFlipped() {
+			s.logger.Info("[DEBUG] last turn")
+			game.LastTurn = true
+		}
 	}
-
+	if game.LastTurn {
+		s.logger.Info(fmt.Sprintf("[DEBUG] player %s: END", player.Id()))
+		player.SetStatus(share_model.PlayerStatus_Played)
+		s.logger.Info(fmt.Sprintf("[DEBUG] player %s: %s", player.Id(), player.Status().String()))
+	}
+	s.logger.Info(fmt.Sprintf("[DEBUG] game ended? %t", game.IsEnded()))
+	for _, player := range game.Players() {
+		s.logger.Info(fmt.Sprintf("[DEBUG] > player %s: %s", player.Id(), player.Status().String()))
+	}
+	if game.IsEnded() {
+		s.logger.Info("[DEBUG] flip all")
+		game.FlipAll()
+		winnerId := game.WinnerId()
+		if winnerId != "" {
+			s.logger.Info(fmt.Sprintf("[DEBUG] winner is %s", winnerId))
+			game.SetWinners(winnerId)
+		}
+		s.logger.Info("[DEBUG] game stopped")
+		game.SetStopped()
+	} else {
+		s.logger.Info("[DEBUG] next player round")
+		game.NextRound()
+		game.SetPlayingRoundPlayer()
+		nextPlayer := game.RoundPlayer()
+		nextPlayer.SetYourMessage(loc.NewMessage("YouDrawing"))
+	}
 	return game, nil
 }
 
@@ -158,7 +215,7 @@ func (p *gamePlugin) CanCreateGame(user share_model.User) error {
 }
 
 func (p *gamePlugin) CreateGame(user share_model.User) (*model.Game, *model.Player, error) {
-	game := model.NewGame(3, 3)
+	game := model.NewGame()
 	player := model.NewPlayerFromUser(game.Id(), user)
 	return game, player, nil
 }
@@ -186,21 +243,29 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 	//
 
 	for _, player := range game.Players() {
-		board := model.NewPlayerBoard()
+		board := player.Board()
 		for columnIndex := 0; columnIndex < game.NbColumn; columnIndex++ {
-			column := model.NewPlayerColumn(columnIndex + 1)
+			column := board.NewColumn()
 			for rowIndex := 0; rowIndex < game.NbRow; rowIndex++ {
 				card, err := game.DrawDeck.Draw()
 				if err != nil {
 					return nil, err
 				}
-				cell := model.NewPlayerCell(columnIndex+1, rowIndex+1, card)
-				column.AddCell(cell)
+				column.NewCell(card)
 			}
-			board.AddColumn(column)
 		}
-		game.AddBoard(player.Id(), board)
 	}
+
+	//
+	// discard first card
+	//
+
+	firstCard, err := game.DrawDeck.Draw()
+	if err != nil {
+		return nil, err
+
+	}
+	game.DiscardDeck.Add(firstCard)
 
 	//
 	// set random order
@@ -214,6 +279,9 @@ func (p *gamePlugin) StartGame(game *model.Game) (*model.Game, error) {
 
 	game.FirstRound()
 	game.SetPlayingRoundPlayer()
+
+	firstlayer := game.RoundPlayer()
+	firstlayer.SetYourMessage(loc.NewMessage("YouDrawing"))
 
 	return game, nil
 }

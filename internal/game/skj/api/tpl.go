@@ -3,6 +3,8 @@ package api
 import (
 	"embed"
 	"html/template"
+
+	"github.com/gre-ory/games-go/internal/util"
 )
 
 var (
@@ -11,7 +13,16 @@ var (
 )
 
 var (
+	// tpl = template.Must(
+	// 	template.ParseFS(tplFS, "tpl/*.tpl"),
+	// )
+
 	tpl = template.Must(
-		template.ParseFS(tplFS, "tpl/*.tpl"),
+		template.
+			New("").
+			Funcs(template.FuncMap{
+				"dict": util.TplDict,
+			}).
+			ParseFS(tplFS, "tpl/*.tpl"),
 	)
 )

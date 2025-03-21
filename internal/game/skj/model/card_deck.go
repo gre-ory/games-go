@@ -9,8 +9,9 @@ type CardDeck []Card
 
 func NewDrawCardDeck() CardDeck {
 	deck := CardDeck{}
-	for card, nb := range Card_NbPerValue {
+	for card_value, nb := range Card_NbPerValue {
 		for i := 0; i < nb; i++ {
+			card := NewCard(card_value)
 			deck.Add(card)
 		}
 	}
@@ -28,6 +29,13 @@ func (d CardDeck) IsEmpty() bool {
 
 func (d CardDeck) Size() int {
 	return len(d)
+}
+
+func (d CardDeck) TopCard() Card {
+	if d.IsEmpty() {
+		panic(ErrEmptyCardDeck)
+	}
+	return d[len(d)-1]
 }
 
 func (d CardDeck) GetTopCard() (Card, error) {

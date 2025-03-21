@@ -2,6 +2,8 @@ package model
 
 import (
 	"strings"
+
+	"github.com/gre-ory/games-go/internal/util/loc"
 )
 
 // //////////////////////////////////////////////////
@@ -39,6 +41,16 @@ type Player interface {
 	SetLoose()
 	UnsetResult()
 
+	YourMessage() *loc.Message
+	SetYourMessage(message *loc.Message)
+	ResetYourMessage()
+
+	Message() *loc.Message
+	SetMessage(message *loc.Message)
+	ResetMessage()
+
+	ResetMessages()
+
 	LabelSlice() []string
 	Labels() string
 }
@@ -47,14 +59,16 @@ type Player interface {
 // base player
 
 type player struct {
-	user     User
-	id       PlayerId
-	status   PlayerStatus
-	gameId   GameId
-	hasScore bool
-	score    PlayerScore
-	rank     PlayerRank
-	result   PlayerResult
+	user        User
+	id          PlayerId
+	status      PlayerStatus
+	gameId      GameId
+	hasScore    bool
+	score       PlayerScore
+	rank        PlayerRank
+	result      PlayerResult
+	yourMessage *loc.Message
+	message     *loc.Message
 }
 
 func NewPlayer(gameId GameId, userId UserId) Player {
@@ -171,6 +185,35 @@ func (p *player) SetLoose() {
 
 func (p *player) UnsetResult() {
 	p.result = PlayerResult_Unknown
+}
+
+func (p *player) YourMessage() *loc.Message {
+	return p.yourMessage
+}
+
+func (p *player) SetYourMessage(message *loc.Message) {
+	p.yourMessage = message
+}
+
+func (p *player) ResetYourMessage() {
+	p.yourMessage = nil
+}
+
+func (p *player) Message() *loc.Message {
+	return p.message
+}
+
+func (p *player) SetMessage(message *loc.Message) {
+	p.message = message
+}
+
+func (p *player) ResetMessage() {
+	p.message = nil
+}
+
+func (p *player) ResetMessages() {
+	p.ResetYourMessage()
+	p.ResetMessage()
 }
 
 func (p *player) LabelSlice() []string {

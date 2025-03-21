@@ -7,7 +7,7 @@
 		<div class="cols-5">
 		{{- range $j, $avatar := $group }}
 		{{- if eq $avatar $current_avatar }}
-		<div class="col-1 center select on">
+		<div class="col-1 center selected">
 			<div
 				class="avatar-{{ $avatar }} m"
 			 	_="on click trigger closeModal"></div>

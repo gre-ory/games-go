@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/static/share/luciole.css"/>
     <link rel="stylesheet" href="/static/share/game.css"/>
     <link rel="stylesheet" href="/static/share/avatar.css"/>
+    <link rel="stylesheet" href="/static/share/card.css"/>
     <link rel="stylesheet" href="/static/{{ .AppId }}/game.css"/>
 </head>
 <body>

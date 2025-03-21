@@ -20,10 +20,9 @@
 	-->
     <link rel="stylesheet" href="/static/share/luciole.css" />
     <link rel="stylesheet" href="/static/share/game.css" />
-    <link rel="stylesheet" href="/static/share/basic.css" />
     <link rel="stylesheet" href="/static/share/dice.css" />
     <link rel="stylesheet" href="/static/share/avatar.css" />
-    <link rel="stylesheet" href="/static/share/card.css" />
+    <link rel="stylesheet" href="/static/ttt/game.css" />
 </head>
 
 <body>
@@ -74,86 +73,72 @@
             <div class="title">Tic Tac Toe</div>
         </div>
 
-
+        <!-- select game -->
         <div id="content">
-
-            <!-- card -->
-
-            <div class="cols-5">
-                <div class="col-1 center">
-                    <div class="card select">
-                        <div class="card-front">
-                            <div class="card-value">X</div>
-                            <div class="card-symbol">$</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="card off">
-                        <div class="card-front">
-                            <div class="card-value">X</div>
-                            <div class="card-symbol">$</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="card selected">
-                        <div class="card-front">
-                            <div class="card-value">X</div>
-                            <div class="card-symbol">$</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="col-1">
-                        <div class="card select">
-                            <div class="card-back">&nbsp;</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="col-1">
-                        <div class="card off">
-                            <div class="card-back">&nbsp;</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- deck -->
-
-            <div class="cols-3">
-                <div class="col-1 center">
-                    <div class="deck">
-                        <div class="nb-card">42</div>
-                        <div class="card select">
-                            <div class="card-front">
-                                <div class="card-value">X</div>
-                                <div class="card-symbol">$</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="deck off">
-                        <div class="nb-card">42</div>
-                        <div class="card">
-                            <div class="card-back">&nbsp;</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-1 center">
-                    <div class="deck off">
-                        <div class="nb-card">0</div>
-                        <div class="card-spot">&nbsp;</div>
+            <div class="cols-1">
+                <div class="new-game col-1 item">
+                    <div class="title center">Nouvelle Partie</div>
+                    <div class="content right">
+                        <button ws-send="" data-action="create-game">
+                            Créer
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-    </div>        
+        <!-- board -->
+        <div id="content">
+            <div id="players" hx-swap-oob="outerHTML">
+                <div class="players cols-2">
+                    <div class="player symbol-2 waiting-to-play col-1 item">
+                        <div class="title center">
+                            <div class="avatar-1 xs"></div>
+                            <div class="name truncate">A3S766</div>
+                        </div>
+                        <div class="content center">
+                            Waiting...
+                        </div>
+                    </div>
+                    <div class="player symbol-1 playing current col-1 item">
+                        <div class="title center">
+                            <div class="avatar-20 xs"></div>
+                            <div class="name truncate">OOPP14</div>
+                        </div>
+                        <div class="content center">
+                            Play <div class="icon-cross"></div>!
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-</div>
+            <div id="board" class="player symbol-1 playing" hx-swap-oob="outerHTML">
+                <div class="board">
+                    <div class="row">
+                        <div class="cell symbol-1">
+                            <div class="icon-cross"></div>
+                        </div>
+                        <div class="cell symbol-2">
+                            <div class="icon-circle"></div>
+                        </div>
+                        <div class="cell select" ws-send="" data-action="play" data-x="3" data-y="1">&nbsp;</div>
+                    </div>
+                    <div class="row">
+                        <div class="cell select" ws-send="" data-action="play" data-x="1" data-y="2">&nbsp;</div>
+                        <div class="cell select" ws-send="" data-action="play" data-x="2" data-y="2">&nbsp;</div>
+                        <div class="cell select" ws-send="" data-action="play" data-x="3" data-y="2">&nbsp;</div>
+                    </div>
+                    <div class="row">
+                        <div class="cell select" ws-send="" data-action="play" data-x="1" data-y="3">&nbsp;</div>
+                        <div class="cell select" ws-send="" data-action="play" data-x="2" data-y="3">&nbsp;</div>
+                        <div class="cell select" ws-send="" data-action="play" data-x="3" data-y="3">&nbsp;</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
 
 </body>
 

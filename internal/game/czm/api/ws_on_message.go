@@ -49,12 +49,8 @@ func (s *gameServer) onMessage(userId share_model.UserId, message []byte) {
 			err = share_model.ErrMissingUserId
 			break
 		}
-		user, err = s.GetUser(userId)
+		user, err = s.GetActiveUser(userId)
 		if err != nil {
-			break
-		}
-		if user.IsInactive() {
-			err = share_model.ErrInactiveUser
 			break
 		}
 

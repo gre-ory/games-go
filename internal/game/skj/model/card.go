@@ -108,7 +108,7 @@ const (
 )
 
 var (
-	Card_NbPerValue = map[Card]int{
+	Card_NbPerValue = map[int]int{
 		-2: 5,
 		-1: 10,
 		0:  15,
@@ -130,10 +130,10 @@ var (
 type Card int
 
 func NewCard(value int) Card {
-	color := CardColorFromValue(value)
 	if value < Card_MinValue || value > Card_MaxValue {
 		panic(ErrInvalidCardValue)
 	}
+	color := CardColorFromValue(value)
 	return Card((int(color) * 100) + value + Card_Delta)
 }
 
@@ -145,11 +145,15 @@ func (c Card) Color() CardColor {
 	return CardColor((int(c) / 100))
 }
 
-func (c Card) Labels() string {
+func (c Card) LabelSlice() []string {
 	labels := make([]string, 0)
 	labels = append(labels, "card")
 	labels = append(labels, c.Color().LabelSlice()...)
-	return strings.Join(labels, " ")
+	return labels
+}
+
+func (c Card) Labels() string {
+	return strings.Join(c.LabelSlice(), " ")
 }
 
 func (c Card) String() string {

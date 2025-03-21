@@ -12,6 +12,7 @@ import (
 
 type Localizer interface {
 	LocalizeText(id string) template.HTML
+	LocalizeMessage(message *Message) template.HTML
 	Loc(id string, args ...any) template.HTML
 	Localize(id string, data any) template.HTML
 }
@@ -46,6 +47,10 @@ type localizer struct {
 
 func (l *localizer) LocalizeText(id string) template.HTML {
 	return l.Localize(id, nil)
+}
+
+func (l *localizer) LocalizeMessage(message *Message) template.HTML {
+	return l.Localize(message.Id, message.Data)
 }
 
 func (l *localizer) Loc(id string, args ...any) template.HTML {
@@ -93,4 +98,35 @@ func (l *localizer) warning(msg string, args ...any) template.HTML {
 
 func (l *localizer) error(msg string, args ...any) template.HTML {
 	return template.HTML(fmt.Sprintf("<span style=\"color: red;background: rgba(255,0,0,0.2);\">"+msg+"</span>", args...))
+}
+
+// //////////////////////////////////////////////////
+// message
+
+type Message struct {
+	Id   string
+	Data map[string]any
+}
+
+func NewMessage(id string, args ...any) *Message {
+	data := map[string]any{}
+	for i, arg := range args {
+		data[fmt.Sprintf("arg%d", i+1)] = arg
+	}
+	return &Message{
+		Id:   id,
+		Data: data,
+	}
+}
+
+func (m *Message) With(key string, value any) *Message {
+	if m.Data == nil {
+		m.Data = map[string]any{}
+	}
+	m.Data[key] = value
+	return m
+}
+
+func (m *Message) Localize(l *localizer) template.HTML {
+	return l.LocalizeMessage(m)
 }

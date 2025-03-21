@@ -5,18 +5,19 @@ import (
 )
 
 const (
+	NbRow       = 3
+	NbColumn    = 4
 	MinNbPlayer = 2
 	MaxNbPlayer = 4
 )
 
-func NewGame(nbRow, nbColumn int) *Game {
+func NewGame() *Game {
 	return &Game{
 		Game:        share_model.NewGame[*Player](MinNbPlayer, MaxNbPlayer),
-		NbRow:       nbRow,
-		NbColumn:    nbColumn,
+		NbRow:       NbRow,
+		NbColumn:    NbColumn,
 		DrawDeck:    NewDrawCardDeck(),
 		DiscardDeck: NewDiscardCardDeck(),
-		boards:      make(map[share_model.PlayerId]*PlayerBoard),
 	}
 }
 
@@ -28,22 +29,81 @@ type Game struct {
 	DiscardDeck  CardDeck
 	SelectedCard *Card
 	ShouldFlip   bool
-	boards       map[share_model.PlayerId]*PlayerBoard
+	LastTurn     bool
 }
 
-func (g *Game) CanJoin() bool {
-	return g.NbPlayer() < MaxNbPlayer
+func (g *Game) CanDrawCard(player *Player) bool {
+	return g.SelectedCard == nil &&
+		!g.ShouldFlip &&
+		!g.DrawDeck.IsEmpty() &&
+		player.IsPlaying()
 }
 
-func (g *Game) CanStart() bool {
-	return g.NbPlayer() >= MinNbPlayer
+func (g *Game) CanDrawDiscardCard(player *Player) bool {
+	return g.SelectedCard == nil &&
+		!g.ShouldFlip &&
+		!g.DiscardDeck.IsEmpty() &&
+		player.IsPlaying()
 }
 
-func (g *Game) AddBoard(playerId share_model.PlayerId, board *PlayerBoard) {
-	g.boards[playerId] = board
+func (g *Game) CanDiscardCard(player *Player) bool {
+	return g.SelectedCard != nil &&
+		!g.ShouldFlip &&
+		player.IsPlaying()
+}
+
+func (g *Game) CanPutCard(player *Player, cell *PlayerCell) bool {
+	return g.SelectedCard != nil &&
+		!g.ShouldFlip &&
+		player.IsPlaying()
+}
+
+func (g *Game) CanFlipCard(player *Player, cell *PlayerCell) bool {
+	return g.SelectedCard == nil &&
+		g.ShouldFlip &&
+		player.IsPlaying() &&
+		cell.CanFlip()
+}
+
+func (g *Game) HasSelectedCard() bool {
+	return g.SelectedCard != nil
+}
+
+func (g *Game) Board(playerId share_model.PlayerId) *PlayerBoard {
+	player, found := g.Player(playerId)
+	if !found {
+		panic(share_model.ErrPlayerNotFound)
+	}
+	return player.Board()
 }
 
 func (g *Game) GetBoard(playerId share_model.PlayerId) (*PlayerBoard, bool) {
-	board, found := g.boards[playerId]
-	return board, found
+	player, found := g.Player(playerId)
+	if !found {
+		return nil, false
+	}
+	return player.Board(), true
+}
+
+func (g *Game) FlipAll() {
+	for _, player := range g.Players() {
+		player.Board().FlipAll()
+	}
+}
+
+func (g *Game) WinnerId() share_model.PlayerId {
+	var winnerId share_model.PlayerId
+	var bestTotal int
+	for _, player := range g.Players() {
+		if winnerId == "" {
+			winnerId = player.Id()
+			bestTotal = player.Board().Total()
+		} else {
+			if total := player.Board().Total(); total < bestTotal {
+				winnerId = player.Id()
+				bestTotal = total
+			}
+		}
+	}
+	return winnerId
 }
